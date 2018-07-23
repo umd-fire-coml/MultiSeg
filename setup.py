@@ -32,13 +32,12 @@ except Exception:
     install_reqs = []
 
 setup(
-    name='mask-rcnn',
+    name='Multi-Seg',
     version='2.1',
-    url='https://github.com/matterport/Mask_RCNN',
-    author='Matterport',
-    author_email='waleed.abdulla@gmail.com',
+    url='https://github.com/umd-fire-coml/MultiSeg',
+    author='umd-fire-coml',
     license='MIT',
-    description='Mask R-CNN for object detection and instance segmentation',
+    description='MultiSeg for Object Detection and Segmentation of Video',
     packages=["image_seg"],
     install_requires=install_reqs,
     include_package_data=True,
