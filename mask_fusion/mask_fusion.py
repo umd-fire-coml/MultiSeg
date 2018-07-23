@@ -85,10 +85,10 @@ class MaskFusion:
         }
         self.model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
-    def train(self, x, y):
-        self.model.train_on_batch(x, y)
+    def train(self, train_generator):
+        self.model.fit_generator(train_generator)
 
-    def infer(self, masks):
+    def predict(self, masks):
         return self.model.predict(masks)
 
     def __call__(self, inputs):
