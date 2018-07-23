@@ -4,6 +4,7 @@
 import skimage.io as io
 from keras.layers import *
 from keras.backend import tf
+import os
 
 # Static GPU memory allocation for tensorflow (need some GPU for PyTorch Optical Flow)
 gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.75)
@@ -13,6 +14,9 @@ sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 from train.davis_wrapper_new import DavisDataset
 from pwc_net.pwc_net_wrapper import PWCNetWrapper
 from .mask_propagation import MaskPropagation
+
+print(os.getcwd())
+
 
 ##########################################################################
 #
