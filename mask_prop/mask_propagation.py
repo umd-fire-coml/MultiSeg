@@ -102,7 +102,7 @@ class MaskPropagation:
         # block 10 (final outputs)
         conv10 = Conv2D(1, 1, activation='sigmoid')(conv9)
 
-        model = Model(input=[inputs], output=[conv10])
+        model = Model(inputs=[inputs], outputs=[conv10])
 
         # compile model
         optimizer = Adam(lr=1e-4)
