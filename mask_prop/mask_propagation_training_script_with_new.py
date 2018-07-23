@@ -4,7 +4,6 @@
 import skimage.io as io
 from keras.layers import *
 from keras.backend import tf
-import os
 
 # Static GPU memory allocation for tensorflow (need some GPU for PyTorch Optical Flow)
 gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.75)
@@ -15,16 +14,13 @@ from train.davis_wrapper_new import DavisDataset
 from pwc_net.pwc_net_wrapper import PWCNetWrapper
 from .mask_propagation import MaskPropagation
 
-print(os.getcwd())
-
-
 ##########################################################################
 #
 # Load Dataset Wrapper, Optical Flow Model, and UNet
 #
 ##########################################################################
 
-dataset = DavisDataset("DAVIS", "480p", val_videos=[
+dataset = DavisDataset("./mask_prop/DAVIS", "480p", val_videos=[
     "car-shadow", "breakdance", "camel", "scooter-black", "libby", "drift-straight"
 ])
 opticalflow = PWCNetWrapper("../MaskTrack_RCNN/pwc_net/pytorch/pwc_net.pth.tar")

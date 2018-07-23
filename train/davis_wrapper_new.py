@@ -91,7 +91,7 @@ class DavisDataset(object):
             y = []
 
             while batch_count < batch_size:
-
+                # TODO first call doesn't take into account if frame_pairs is empty
                 sample = frame_pairs[i]
                 model_input, ground_truth = get_model_input(*sample)
 
