@@ -1,0 +1,3 @@
+[submodule "pwc_net"]
+	path = pwc_net
+	url = https://github.com/umd-fire-coml/PWC-Net.git

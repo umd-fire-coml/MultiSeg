@@ -1,0 +1,14 @@
+numpy=1.13
+keras=2.1
+tensorflow-gpu=1.6
+scipy
+Pillow
+cython
+matplotlib
+scikit-image
+opencv-python
+h5py
+imgaug
+IPython[all]
+scikit-learn
+imageio
