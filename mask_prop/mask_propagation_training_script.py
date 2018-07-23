@@ -33,7 +33,7 @@ if run_step_by_step: input("Imports Done. Next: Load Optical Flow and UNet, Cont
 dataset = DavisDataset("DAVIS", "480p", val_videos=[
     "car-shadow", "breakdance", "camel", "scooter-black", "libby", "drift-straight"
 ])
-opticalflow = PWCNetWrapper("../Image_Seg/pwc_net/pwc_net/pwc_net.pth.tar")
+opticalflow = PWCNetWrapper("./pwc_net/pwc_net.pth.tar")
 model = get_model(input_shape=(480, 864, 3))
 
 if run_step_by_step: input("Loaded Optical Flow and UNet. Next: Load Dataset. Continue? (type anything): ")
