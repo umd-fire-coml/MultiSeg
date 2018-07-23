@@ -114,9 +114,7 @@ class MaskPropagation:
 
         self.model = model
 
-    def load_weights(self, weights_path='./mask_prop/davis_unet_weights.hdf5'):
-        import os
-        print(os.getcwd())
+    def load_weights(self, weights_path='./mask_prop/davis_unet_weights.h5'):
         self.model.load_weights(weights_path)
 
     def train(self, train_generator, val_generator, epochs=30, steps_per_epoch=500, val_steps_per_epoch=100):
@@ -130,7 +128,7 @@ class MaskPropagation:
                 write_images=False
             ),
             ModelCheckpoint(
-                "logs/NEW_VAL_FL_davis_unet_weights__{epoch:02d}__{val_loss:.2f}.hdf5",
+                "logs/NEW_VAL_FL_davis_unet_weights__{epoch:02d}__{val_loss:.2f}.h5",
                 verbose=0, save_weights_only=True
             ),
             CSVLogger(history_file)
