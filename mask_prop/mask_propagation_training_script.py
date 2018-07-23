@@ -30,7 +30,7 @@ if run_step_by_step: input("Imports Done. Next: Load Optical Flow and UNet, Cont
 #
 ##########################################################################
 
-dataset = DavisDataset("DAVIS", "480p", val_videos=[
+dataset = DavisDataset("./mask_prop/DAVIS", "480p", val_videos=[
     "car-shadow", "breakdance", "camel", "scooter-black", "libby", "drift-straight"
 ])
 opticalflow = PWCNetWrapper("./opt_flow/pwc_net.pth.tar")
