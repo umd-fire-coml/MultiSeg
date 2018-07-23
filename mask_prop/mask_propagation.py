@@ -1,38 +1,74 @@
 """
 Top-level objects for the mask propagation module.
 """
+import cv2
 from datetime import datetime
-
 from keras.callbacks import TensorBoard, CSVLogger, ModelCheckpoint
 from keras.layers import Input, Conv2D, Dropout, MaxPooling2D, Conv2DTranspose, Concatenate
 from keras.models import Model
 from keras.optimizers import Adam
 from keras.backend import tf
 from keras.losses import K
+import matplotlib.pyplot as plt
+from skimage import io
 
-__all__ = ['MaskPropagation']
+__all__ = ['pad_image', 'plot_prediction', 'MaskPropagation']
+
+
+def pad_image(image):
+    # for davis, optical flow output always maps (480, 854) -> (480, 864)
+    # for UNet, both dimensions must be a multiple of 8
+    return cv2.copyMakeBorder(image, 0, 0, 5, 5, cv2.BORDER_CONSTANT, value=0)
+
+
+def plot_prediction(frame_pair, pred_mask):
+    fig, axes = plt.subplots(4, 2)
+    fig.set_size_inches(32, 16)
+
+    img_prev = pad_image(io.imread(frame_pair[0]))
+    img_curr = pad_image(io.imread(frame_pair[1]))
+    mask_prev = pad_image(io.imread(frame_pair[2]))
+    mask_curr = pad_image(io.imread(frame_pair[3]))
+
+    axes[0][0].set_title("Image Prev")
+    axes[0][1].set_title("Image Curr")
+    axes[1][0].set_title("Mask Prev")
+    axes[1][1].set_title("Mask Curr")
+    axes[2][0].set_title("In Prev not in Curr")
+    axes[2][1].set_title("In Curr not in Prev")
+    axes[3][0].set_title("Pred Mask Curr")
+    axes[3][1].set_title("Difference Btwn Curr and Pred")
+
+    axes[0][0].imshow(img_prev)
+    axes[0][1].imshow(img_curr)
+    axes[1][0].imshow(mask_prev)
+    axes[1][1].imshow(mask_curr)
+    axes[2][0].imshow((mask_prev == 255) & (mask_curr != 255))
+    axes[2][1].imshow((mask_prev != 255) & (mask_curr == 255))
+    axes[3][0].imshow(pred_mask)
+    axes[3][1].imshow((pred_mask == 255) & (mask_curr != 255))
+
+
+def binary_focal_loss(gamma=2., alpha=.25):
+    """
+    Defines a binary focal loss for contrastive mask loss.
+    :param gamma:
+    :param alpha:
+    :return: focal loss function
+    """
+    def focal_loss_fixed(y_true, y_pred):
+        pt_1 = tf.where(tf.equal(y_true, 1), y_pred, tf.ones_like(y_pred))
+        pt_0 = tf.where(tf.equal(y_true, 0), y_pred, tf.zeros_like(y_pred))
+        return -K.sum(alpha * K.pow(1. - pt_1, gamma) * K.log(pt_1)) - K.sum(
+            (1 - alpha) * K.pow(pt_0, gamma) * K.log(1. - pt_0))
+
+    return focal_loss_fixed
 
 
 class MaskPropagation:
     def __init__(self):
         self._build_model()
         self.load_weights()
-
-    @staticmethod
-    def binary_focal_loss(gamma=2., alpha=.25):
-        """
-        Defines a binary focal loss for contrastive mask loss.
-        :param gamma:
-        :param alpha:
-        :return: focal loss function
-        """
-        def focal_loss_fixed(y_true, y_pred):
-            pt_1 = tf.where(tf.equal(y_true, 1), y_pred, tf.ones_like(y_pred))
-            pt_0 = tf.where(tf.equal(y_true, 0), y_pred, tf.zeros_like(y_pred))
-            return -K.sum(alpha * K.pow(1. - pt_1, gamma) * K.log(pt_1)) - K.sum(
-                (1 - alpha) * K.pow(pt_0, gamma) * K.log(1. - pt_0))
-
-        return focal_loss_fixed
 
     def _build_model(self, deconv_act=None):
         """
@@ -106,7 +142,7 @@ class MaskPropagation:
 
         # compile model
         optimizer = Adam(lr=1e-4)
-        loss = MaskPropagation.binary_focal_loss()  # 'binary_crossentropy'
+        loss = binary_focal_loss()  # 'binary_crossentropy'
         metrics = {
             'acc': 'accuracy'
         }
@@ -145,5 +181,6 @@ class MaskPropagation:
 
         return history
 
-    def predict(self, optical_flow, masks):
-        pass
+    def predict(self, inputs, **kwargs):
+        return self.model.predict(inputs, kwargs)
+

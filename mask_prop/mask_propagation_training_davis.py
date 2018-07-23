@@ -1,11 +1,8 @@
 #!usr/bin/env python
 
 # Imports
-import skimage.io as io
 import cv2
-from datetime import datetime
-
-import keras
+import skimage.io as io
 from keras.layers import *
 from keras.backend import tf
 
@@ -14,15 +11,9 @@ gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.75)
 sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 
 # Our own modules
-from train.davis_wrapper_new import DavisDataset
+from train.davis_wrapper_new import MaskPropDavisDataset
 from opt_flow.pwc_net_wrapper import PWCNetWrapper
-from .MaskPropagationModuleDavis import get_model
-
-# Command to run: python TRAIN_MASK_PROP_FocalLoss.py 2>&1 | tee training_logs_fl_1.txt
-
-run_step_by_step = False
-
-if run_step_by_step: input("Imports Done. Next: Load Optical Flow and UNet, Continue? (type anything): ")
+from .mask_propagation import *
 
 ##########################################################################
 #
@@ -30,26 +21,17 @@ if run_step_by_step: input("Imports Done. Next: Load Optical Flow and UNet, Cont
 #
 ##########################################################################
 
-dataset = DavisDataset("./mask_prop/DAVIS", "480p", val_videos=[
+dataset = MaskPropDavisDataset("./mask_prop/DAVIS", "480p", val_videos=[
     "car-shadow", "breakdance", "camel", "scooter-black", "libby", "drift-straight"
 ])
-opticalflow = PWCNetWrapper("./opt_flow/pwc_net.pth.tar")
-model = get_model()
-
-if run_step_by_step: input("Loaded Optical Flow and UNet. Next: Load Dataset. Continue? (type anything): ")
-
+optical_flow = PWCNetWrapper("./opt_flow/pwc_net.pth.tar")
+model = MaskPropagation()
 
 ##########################################################################
 #
-# Data Preprocessing Methods
+# Optical Flow
 #
 ##########################################################################
-
-
-def pad_image(image):
-    # for davis, opitcal flow output always maps (480, 854) -> (480, 864)
-    # for UNet, both dimensions must be a multiple of 8
-    return cv2.copyMakeBorder(image, 0, 0, 5, 5, cv2.BORDER_CONSTANT, value=0)
 
 
 def get_model_input(img_prev_p, img_curr_p, mask_prev_p, mask_curr_p):
@@ -57,8 +39,7 @@ def get_model_input(img_prev_p, img_curr_p, mask_prev_p, mask_curr_p):
     Returns tensor that contains previous mask and optical flow, and also
     returns current mask as the ground truth value.
     """
-    img_prev, img_curr = io.imread(img_prev_p), io.imread(img_curr_p)
-    img_prev, img_curr = pad_image(img_prev), pad_image(img_curr)
+    img_prev, img_curr = pad_image(io.imread(img_prev_p)), pad_image(io.imread(img_curr_p))
 
     # Check 1
     if img_prev.shape != img_curr.shape:
@@ -68,7 +49,7 @@ def get_model_input(img_prev_p, img_curr_p, mask_prev_p, mask_curr_p):
         print("ERROR: img_prev.shape != (480, 864, 3)", img_prev_p, img_prev.shape)
         return None, None
 
-    finalflow = opticalflow.infer_flow_field(img_prev, img_curr)
+    finalflow = optical_flow.infer_flow_field(img_prev, img_curr)
     finalflow_x, finalflow_y = finalflow[:, :, 0], finalflow[:, :, 1]
     finalflow[:, :, 0] = (finalflow_x - finalflow_x.mean()) / finalflow_x.std()
     finalflow[:, :, 1] = (finalflow_y - finalflow_y.mean()) / finalflow_y.std()
@@ -100,50 +81,24 @@ def get_model_input(img_prev_p, img_curr_p, mask_prev_p, mask_curr_p):
 #
 ##########################################################################
 
+def create_data_generators(batch_size=4):
+    train, val = dataset.get_train_val()
 
-batch_size = 4
-num_epochs = 2
+    print("train size: ", len(train))
+    print("val size: ", len(val))
 
-train, val = dataset.get_train_val()
+    train_generator = dataset.data_generator(train, get_model_input, batch_size=batch_size)
+    val_generator = dataset.data_generator(val, get_model_input, batch_size=batch_size)
 
-print("train size: ", len(train))
-print("val size: ", len(val))
+    return train_generator, val_generator
 
-train_generator = dataset.data_generator(train, get_model_input, batch_size=batch_size)
-val_generator = dataset.data_generator(val, get_model_input, batch_size=batch_size)
 
-if run_step_by_step: input("Loaded Data. Next: train Model. Continue? (type anything): ")
+train_generator, val_generator = create_data_generators()
 
 ##########################################################################
 #
-# train Model
+# Train Model
 #
 ##########################################################################
 
-history_file = "log_dir/NEW_VAL_FL_history_" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
-
-callbacks = [
-    keras.callbacks.TensorBoard(
-        log_dir="log_dir",
-        histogram_freq=0,
-        write_graph=True,
-        write_images=False
-    ),
-    keras.callbacks.ModelCheckpoint(
-        "log_dir/NEW_VAL_FL_davis_unet_weights__{epoch:02d}__{val_loss:.2f}.hdf5",
-        verbose=0, save_weights_only=True
-    ),
-    keras.callbacks.CSVLogger(history_file)
-]
-
-# New addition: load weights trained on simple binary crossentropy loss
-model.load_weights('./mask_prop/davis_unet_weights.h5')
-
-history = model.fit_generator(
-    train_generator,
-    steps_per_epoch=int(len(train) / batch_size),
-    validation_data=val_generator,
-    validation_steps=int(len(val) / batch_size),
-    epochs=num_epochs,
-    callbacks=callbacks
-)
+model.train(train_generator, val_generator)
