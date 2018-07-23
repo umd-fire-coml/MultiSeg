@@ -33,6 +33,7 @@ model = MaskPropagation()
 #
 ##########################################################################
 
+
 def pad_image(image):
     # for davis, opitcal flow output always maps (480, 854) -> (480, 864)
     # for UNet, both dimensions must be a multiple of 8

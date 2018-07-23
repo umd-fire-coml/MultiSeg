@@ -15,7 +15,7 @@ sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 
 # Our own modules
 from train.davis_wrapper_new import DavisDataset
-from opt_flow.pytorch.pwc_net_wrapper import PWCNetWrapper
+from opt_flow.pwc_net_wrapper import PWCNetWrapper
 from .MaskPropagationModuleDavis import get_model
 
 # Command to run: python TRAIN_MASK_PROP_FocalLoss.py 2>&1 | tee training_logs_fl_1.txt
