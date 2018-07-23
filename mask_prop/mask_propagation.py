@@ -1,5 +1,7 @@
 """
 Top-level objects for the mask propagation module.
+
+See mask_propagation_training_davis.py for details and an example use.
 """
 import cv2
 from datetime import datetime
@@ -16,12 +18,21 @@ __all__ = ['pad_image', 'plot_prediction', 'MaskPropagation']
 
 
 def pad_image(image):
+    """
+    Pads images to be multiples of 8. (Do before feeding into U-Net.)
+    :param: image to pad
+    """
     # for davis, optical flow output always maps (480, 854) -> (480, 864)
     # for UNet, both dimensions must be a multiple of 8
     return cv2.copyMakeBorder(image, 0, 0, 5, 5, cv2.BORDER_CONSTANT, value=0)
 
 
 def plot_prediction(frame_pair, pred_mask):
+    """
+    :param frame_pair:
+    :param pred_mask:
+    :return:
+    """
     fig, axes = plt.subplots(4, 2)
     fig.set_size_inches(32, 16)
 

@@ -1,12 +1,10 @@
 #!usr/bin/env python
 
-# Imports
-import cv2
-import skimage.io as io
-from keras.layers import *
 from keras.backend import tf
+import numpy as np
+from skimage import io
 
-# Static GPU memory allocation for tensorflow (need some GPU for PyTorch Optical Flow)
+# static GPU memory allocation for tensorflow (reserve some GPU for PyTorch optical flow)
 gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.75)
 sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 
