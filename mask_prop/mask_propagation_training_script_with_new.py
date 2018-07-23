@@ -45,6 +45,8 @@ def get_model_input(img_prev_p, img_curr_p, mask_prev_p, mask_curr_p):
     finalflow[:, :, 0] = (finalflow_x - finalflow_x.mean()) / finalflow_x.std()
     finalflow[:, :, 1] = (finalflow_y - finalflow_y.mean()) / finalflow_y.std()
 
+    print(mask_prev_p)
+
     mask_prev = mask_prev_p / 255
     mask_curr = mask_curr_p / 255
 
