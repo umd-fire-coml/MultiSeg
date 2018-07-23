@@ -33,7 +33,7 @@ except Exception:
 
 setup(
     name='Multi-Seg',
-    version='2.1',
+    version='1.0',
     url='https://github.com/umd-fire-coml/MultiSeg',
     author='umd-fire-coml',
     license='MIT',
