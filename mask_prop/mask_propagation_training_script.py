@@ -34,7 +34,7 @@ dataset = DavisDataset("./mask_prop/DAVIS", "480p", val_videos=[
     "car-shadow", "breakdance", "camel", "scooter-black", "libby", "drift-straight"
 ])
 opticalflow = PWCNetWrapper("./opt_flow/pwc_net.pth.tar")
-model = get_model(input_shape=(480, 864, 3))
+model = get_model()
 
 if run_step_by_step: input("Loaded Optical Flow and UNet. Next: Load Dataset. Continue? (type anything): ")
 
@@ -135,8 +135,6 @@ callbacks = [
     ),
     keras.callbacks.CSVLogger(history_file)
 ]
-
-model = get_model()
 
 # New addition: load weights trained on simple binary crossentropy loss
 model.load_weights('./mask_prop/davis_unet_weights.h5')
