@@ -114,7 +114,7 @@ class MaskPropagation:
 
         self.model = model
 
-    def load_weights(self, weights_path='./davis_unet_weights.hdf5'):
+    def load_weights(self, weights_path='./mask_prop/davis_unet_weights.hdf5'):
         self.model.load_weights(weights_path)
 
     def train(self, train_generator, val_generator, epochs=30, steps_per_epoch=500, val_steps_per_epoch=100):
