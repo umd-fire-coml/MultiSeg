@@ -139,7 +139,7 @@ callbacks = [
 model = get_model()
 
 # New addition: load weights trained on simple binary crossentropy loss
-model.load_weights("log_dir/NEW_davis_unet_weights__30__0.03.hdf5")
+model.load_weights('./mask_prop/davis_unet_weights.h5')
 
 history = model.fit_generator(
     train_generator,
