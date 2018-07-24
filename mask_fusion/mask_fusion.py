@@ -4,6 +4,7 @@ architecture.
 """
 
 from datetime import datetime
+from keras.backend import tf
 import keras.callbacks as kc
 import keras.layers as kl
 import keras.models as km
@@ -11,16 +12,10 @@ import keras.optimizers as ko
 import keras.utils as ku
 import numpy as np
 
-from mrcnn.utils import compute_overlaps_masks
-
-__all__ = ['MaskFusion', 'DoubleMaskGenerator']
+__all__ = ['MaskFusion']
 
 
-def relu6(x):
-    return np.max(0, np.min(x, 6))
-
-
-def convolve(filters, kernel_size: int = 3, activation=relu6, kernel_initializer='he_normal'):
+def convolve(filters, kernel_size: int = 3, activation='relu', kernel_initializer='he_normal'):
     return kl.Conv2D(filters, kernel_size,
                      activation=activation,
                      kernel_initializer=kernel_initializer,
@@ -42,9 +37,8 @@ def concat():
     return kl.Concatenate(axis=3)
 
 
-def iou(y_true, y_pred):
-    # TODO have not tested to make sure tensor sizes are compatible
-    return compute_overlaps_masks(y_true, y_pred)
+def iou(y_true: tf.Tensor, y_pred: tf.Tensor):
+    return tf.metrics.mean_iou(y_true, y_pred, 2)
 
 
 class MaskFusion:
@@ -66,12 +60,12 @@ class MaskFusion:
         conv3 = convolve(128)(conv3)
 
         deconv4 = deconvolve(64)(conv3)
-        merge4 = concat()([pool2, deconv4])
+        merge4 = concat()([conv2, deconv4])
         conv4 = convolve(64)(merge4)
         conv4 = convolve(64)(conv4)
 
         deconv5 = deconvolve(64)(conv4)
-        merge5 = concat()([pool1, deconv5])
+        merge5 = concat()([conv1, deconv5])
         conv5 = convolve(32)(merge5)
         conv5 = convolve(32)(conv5)
 
@@ -82,13 +76,13 @@ class MaskFusion:
         # compile model
         optimizer = ko.Adam()
         loss = 'binary_crossentropy'
-        metrics = {
-            'IoU': iou,
-            'acc': 'accuracy'
-        }
+        metrics = ['accuracy', 'sparse_categorical_accuracy']
         self.model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
-    def train(self, train_generator, **kwargs):
+    def load_weights(self, weights_path):
+        self.model.load_weights(weights_path)
+
+    def train(self, train_generator, val_generator, **kwargs):
         history_file = "logs/mask_fusion_history_" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
 
         callbacks = [
@@ -105,69 +99,25 @@ class MaskFusion:
             kc.CSVLogger(history_file)
         ]
 
-        return self.model.fit_generator(train_generator, callbacks=callbacks, **kwargs)
+        return self.model.fit_generator(train_generator, validation_data=val_generator, callbacks=callbacks, **kwargs)
 
-    def predict(self, masks, **kwargs):
-        return self.model.predict(masks, kwargs)
+    def predict(self, masks, batch_size=1, **kwargs):
+        return self.model.predict(masks, batch_size=batch_size, **kwargs)
 
     def __call__(self, inputs):
         return self.model(inputs)
 
 
-class DoubleMaskGenerator(ku.Sequence):
-    def __init__(self, list_IDs, labels, batch_size=32, dim=(32, 32, 32), n_channels=1, shuffle=True):
-        self.dim = dim
-        self.batch_size = batch_size
-        self.labels = labels
-        self.list_IDs = list_IDs
-        self.n_channels = n_channels
-        self.shuffle = shuffle
-        self.indexes = np.arange(len(self.list_IDs))
-
-        self.on_epoch_end()
-
+class EmptyMaskGenerator(ku.Sequence):
     def __len__(self):
         """
         :return: number of batches
         """
-        return int(np.floor(len(self.list_IDs) / self.batch_size))
+        return 20
 
     def __getitem__(self, index: int):
         """"
         Generates one batch of data.
         """
-        # Generate indexes of the batch
-        indexes = self.indexes[index*self.batch_size:(index+1)*self.batch_size]
-
-        # Find list of IDs
-        list_IDs_temp = [self.list_IDs[k] for k in indexes]
-
-        # Generate data
-        X, y = self._generate_data(list_IDs_temp)
-
-        return X, y
-
-    def on_epoch_end(self):
-        """
-        Updates the indices after each epoch (and sets them at the very beginning).
-        """
-        self.indexes = np.arange(len(self.list_IDs))
-        if self.shuffle:
-            np.random.shuffle(self.indexes)
-
-    def _generate_data(self, list_IDs_temp):
-        """
-        Generates all the data for a single batch based on the list of IDs provided.
-        """
-        # X : (n_samples, *dim, n_channels)
-        # Initialization
-        X = np.empty((self.batch_size, *self.dim, self.n_channels))
-        y = np.empty((self.batch_size, ), dtype=int)
-
-        # Generate data
-        for i, ID in enumerate(list_IDs_temp):
-            # Store sample
-            X[i, ] = np.load('data/' + ID + '.npy')
-
-        return X, y
+        return np.empty((1, 512, 512, 2), dtype=np.float32), np.empty((1, 512, 512, 1), dtype=np.float32)
 
