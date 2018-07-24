@@ -250,13 +250,17 @@ class DAVISDataset(utils.Dataset):
         # unique is a sorted array of unique instances (including background)
         unique = np.unique(raw_mask)
 
-        # section that removes/involves background
+
+             # section that removes/involves background
         index = np.searchsorted(unique, 255)
-        unique = np.delete(unique, index, axis=0)
+        if unique.size > index:
+            unique = np.delete(unique, index, axis=0)
 
         # tensors!
         if len(raw_mask.shape) == 3:
            raw_mask = raw_mask[...,0]
+        if raw_mask.shape[-1] == 3:
+           raw_mask = raw_mask[..., 0]
         raw_mask = raw_mask.reshape(self.image_height, self.image_width, 1)
 
         # broadcast!!!!
