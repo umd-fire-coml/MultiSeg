@@ -60,7 +60,12 @@ def plot_prediction(frame_pair, pred_mask):
     axes[3][1].imshow((pred_mask == 255) & (mask_curr != 255))
 
 
-def binary_focal_loss(gamma=2., alpha=.25):
+def unbalanced_binary_focal_loss(y_true, y_pred, gamma=5):
+    pt = y_true * y_pred + (1 - y_true) * (1 - y_pred)
+    fl = -K.pow(1 - pt, gamma) * K.log(pt)
+
+
+def incorrect_focal_loss(gamma=2., alpha=.25):
     """
     Defines a binary focal loss for contrastive mask loss.
     :param gamma:
@@ -70,7 +75,7 @@ def binary_focal_loss(gamma=2., alpha=.25):
     def focal_loss_fixed(y_true, y_pred):
         pt_1 = tf.where(tf.equal(y_true, 1), y_pred, tf.ones_like(y_pred))
         pt_2 = tf.where(tf.equal(y_true, 0), y_pred, tf.zeros_like(y_pred))
-        return -K.sum(alpha * K.pow(1. - pt_1, gamma) * K.log(pt_1)) - K.sum(
+        return -K.sum(alpha * K.pow(1. - pt_1, gamma) + K.log(pt_1)) - K.sum(
             (1 - alpha) * K.pow(pt_2, gamma) * K.log(1. - pt_2))
 
     return focal_loss_fixed
@@ -153,7 +158,7 @@ class MaskPropagation:
 
         # compile model
         optimizer = Adam(lr=1e-4)
-        loss = binary_focal_loss()  # 'binary_crossentropy'
+        loss = unbalanced_binary_focal_loss  # 'binary_crossentropy'
         metrics = {
             'acc': 'accuracy'
         }
