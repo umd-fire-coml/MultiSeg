@@ -3,4 +3,4 @@
 # (Not ready for use, work in progress)
 
 ## MultiSegNet Model
-![Network Flow Chart for MultiSegNet](MultiSegDiagram.jpg)
+![Network Flow Chart for MultiSegNet](MultiSegDiagram.png)
