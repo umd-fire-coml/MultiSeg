@@ -807,7 +807,7 @@ class DetectionLayer(KE.Layer):
         m = parse_image_meta_graph(image_meta)
         image_shape = m['image_shape'][0]
         window = norm_boxes_graph(m['window'], image_shape[:2])
-        
+
         # Run detection refinement graph on each item in the batch
         detections_batch = utils.batch_slice(
             [rois, mrcnn_class, mrcnn_bbox, window],
@@ -2045,7 +2045,7 @@ class MaskRCNN:
                                               config.MASK_POOL_SIZE,
                                               config.NUM_CLASSES,
                                               train_bn=config.TRAIN_BN)
-            
+
 
             model = KM.Model([input_image, input_image_meta, input_anchors],
                              [detections, mrcnn_class, mrcnn_bbox,
@@ -2268,7 +2268,6 @@ class MaskRCNN:
 
     def train(self, train_dataset, val_dataset, learning_rate, epochs, layers,
               augmentation=None, callbacks=[], use_multiprocessing=True):
-
         """Train the model.
         train_dataset, val_dataset: Training and validation Dataset objects.
         learning_rate: The learning rate to train with
@@ -2412,7 +2411,7 @@ class MaskRCNN:
         class_ids: [N] Integer class IDs for each bounding box
         scores: [N] Float probability scores of the class_id
         masks: [height, width, num_instances] Instance masks"""
-        
+
         # How many detections do we have?
         # Detections array is padded with zeros. Find the first class_id == 0.
         zero_ix = np.where(detections[:, 4] == 0)[0]
@@ -2448,8 +2447,7 @@ class MaskRCNN:
             scores = np.delete(scores, exclude_ix, axis=0)
             masks = np.delete(masks, exclude_ix, axis=0)
             N = class_ids.shape[0]
-		
-		
+
         # Resize masks to original image size and set boundary threshold.
         full_masks = []
         for i in range(N):
@@ -2504,15 +2502,14 @@ class MaskRCNN:
         # Run object detection
         detections, _, _, mrcnn_mask, roi_features, _, _, _ =\
             self.keras_model.predict([molded_images, image_metas, anchors], verbose=0)
-        
-        
+
         # Process detections
         results = []
         for i, image in enumerate(images):
             final_rois, final_class_ids, final_scores, final_masks, final_features,\
-				= self.unmold_detections(detections[i],\
-				mrcnn_mask[i], roi_features[i], image.shape, molded_images[i].shape,\
-				windows[i])
+                = self.unmold_detections(detections[i],
+                                         mrcnn_mask[i], roi_features[i], image.shape, molded_images[i].shape,
+                                         windows[i])
 
             full_float_masks = []
             N = final_rois.shape[0]
@@ -2520,11 +2517,10 @@ class MaskRCNN:
                 y1, x1, y2, x2 = final_rois[j]
                 mask = skimage.transform.resize(mrcnn_mask[i, np.arange(N), :, :, final_class_ids][j], (y2 - y1, x2 - x1), order=1, mode="constant")
 
-                 # Put the mask in the right location.
+                # Put the mask in the right location.
                 full_float_mask = np.zeros(image.shape[:2], dtype=np.float32)
                 full_float_mask[y1:y2, x1:x2] = mask
                 full_float_masks.append(full_float_mask)
-
 
             results.append({
                 "rois": final_rois,
@@ -2532,7 +2528,7 @@ class MaskRCNN:
                 "scores": final_scores,
                 "masks": final_masks,
                 "roi_features": final_features,
-				"mrcnn_masks": np.array(full_float_masks),
+                "mrcnn_masks": np.array(full_float_masks),
             })
         return results
 

@@ -42,9 +42,7 @@ def iou(y_true: tf.Tensor, y_pred: tf.Tensor):
 
 
 class MaskFusion:
-    def __init__(self, mode):
-        assert mode in ['training', 'inference']
-
+    def __init__(self):
         # build model
         input_layer = kl.Input(shape=(None, None, 2), dtype=np.float32)
 

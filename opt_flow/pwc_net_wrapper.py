@@ -38,8 +38,6 @@ class PWCNetWrapper:
         else:
             img_all.append(img2)
 
-        # TODO optimize optical flow by saving a shrunken image?
-
         # rescale the image size to be multiples of 64
         H, W = img_all[0].shape[0], img_all[0].shape[1]
         H_, W_ = int(ceil(H/divisor) * divisor), int(ceil(W/divisor) * divisor)
