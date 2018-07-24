@@ -1,7 +1,6 @@
 """
 Mask R-CNN
 The main Mask R-CNN model implemenetation.
-
 Copyright (c) 2017 Matterport, Inc.
 Licensed under the MIT License (see LICENSE for details)
 Written by Waleed Abdulla
@@ -24,7 +23,7 @@ import keras.layers as KL
 import keras.engine as KE
 import keras.models as KM
 
-from mrcnn import utils
+from image_seg import utils
 
 # Requires TensorFlow 1.3+ and Keras 2.0.8+.
 from distutils.version import LooseVersion
@@ -61,7 +60,7 @@ class BatchNorm(KL.BatchNormalization):
     def call(self, inputs, training=None):
         """
         Note about training values:
-            None: train BN layers. This is the normal mode
+            None: Train BN layers. This is the normal mode
             False: Freeze BN layers. Good when batch size is small
             True: (don't use). Set layer in training mode even when inferencing
         """
@@ -102,7 +101,7 @@ def identity_block(input_tensor, kernel_size, filters, stage, block,
         stage: integer, current stage label, used for generating layer names
         block: 'a','b'..., current block label, used for generating layer names
         use_bias: Boolean. To use or not use a bias in conv layers.
-        train_bn: Boolean. train or freeze Batch Norm layres
+        train_bn: Boolean. Train or freeze Batch Norm layres
     """
     nb_filter1, nb_filter2, nb_filter3 = filters
     conv_name_base = 'res' + str(stage) + block + '_branch'
@@ -137,7 +136,7 @@ def conv_block(input_tensor, kernel_size, filters, stage, block,
         stage: integer, current stage label, used for generating layer names
         block: 'a','b'..., current block label, used for generating layer names
         use_bias: Boolean. To use or not use a bias in conv layers.
-        train_bn: Boolean. train or freeze Batch Norm layres
+        train_bn: Boolean. Train or freeze Batch Norm layres
     Note that from stage 3, the first conv layer at main path is with subsample=(2,2)
     And the shortcut should have subsample=(2,2) as well
     """
@@ -172,7 +171,7 @@ def resnet_graph(input_image, architecture, stage5=False, train_bn=True):
     """Build a ResNet graph.
         architecture: Can be resnet50 or resnet101
         stage5: Boolean. If False, stage5 of the network is not created
-        train_bn: Boolean. train or freeze Batch Norm layres
+        train_bn: Boolean. Train or freeze Batch Norm layres
     """
     assert architecture in ["resnet50", "resnet101"]
     # Stage 1
@@ -913,7 +912,7 @@ def fpn_classifier_graph(rois, feature_maps, image_meta,
     - image_meta: [batch, (meta train)] Image details. See compose_image_meta()
     pool_size: The width of the square feature map generated from ROI Pooling.
     num_classes: number of classes, which determines the depth of the results
-    train_bn: Boolean. train or freeze Batch Norm layres
+    train_bn: Boolean. Train or freeze Batch Norm layres
     fc_layers_size: Size of the 2 FC layers
 
     Returns:
@@ -967,18 +966,19 @@ def build_fpn_mask_graph(rois, feature_maps, image_meta,
     image_meta: [batch, (meta train)] Image details. See compose_image_meta()
     pool_size: The width of the square feature map generated from ROI Pooling.
     num_classes: number of classes, which determines the depth of the results
-    train_bn: Boolean. train or freeze Batch Norm layres
+    train_bn: Boolean. Train or freeze Batch Norm layres
 
     Returns: Masks [batch, roi_count, height, width, num_classes]
+             ROI features [batch, boxes, pool_height, pool_width, channels]
     """
     # ROI Pooling
     # Shape: [batch, boxes, pool_height, pool_width, channels]
-    x = PyramidROIAlign([pool_size, pool_size],
+    y = PyramidROIAlign([pool_size, pool_size],
                         name="roi_align_mask")([rois, image_meta] + feature_maps)
 
     # Conv layers
     x = KL.TimeDistributed(KL.Conv2D(256, (3, 3), padding="same"),
-                           name="mrcnn_mask_conv1")(x)
+                           name="mrcnn_mask_conv1")(y)
     x = KL.TimeDistributed(BatchNorm(),
                            name='mrcnn_mask_bn1')(x, training=train_bn)
     x = KL.Activation('relu')(x)
@@ -1005,7 +1005,7 @@ def build_fpn_mask_graph(rois, feature_maps, image_meta,
                            name="mrcnn_mask_deconv")(x)
     x = KL.TimeDistributed(KL.Conv2D(num_classes, (1, 1), strides=1, activation="sigmoid"),
                            name="mrcnn_mask")(x)
-    return x
+    return [x, y]
 
 
 ############################################################
@@ -1992,7 +1992,7 @@ class MaskRCNN:
                                      train_bn=config.TRAIN_BN,
                                      fc_layers_size=config.FPN_CLASSIF_FC_LAYERS_SIZE)
 
-            mrcnn_mask = build_fpn_mask_graph(rois, mrcnn_feature_maps,
+            mrcnn_mask, roi_features = build_fpn_mask_graph(rois, mrcnn_feature_maps,
                                               input_image_meta,
                                               config.MASK_POOL_SIZE,
                                               config.NUM_CLASSES,
@@ -2040,15 +2040,16 @@ class MaskRCNN:
 
             # Create masks for detections
             detection_boxes = KL.Lambda(lambda x: x[..., :4])(detections)
-            mrcnn_mask = build_fpn_mask_graph(detection_boxes, mrcnn_feature_maps,
+            mrcnn_mask, roi_features = build_fpn_mask_graph(detection_boxes, mrcnn_feature_maps,
                                               input_image_meta,
                                               config.MASK_POOL_SIZE,
                                               config.NUM_CLASSES,
                                               train_bn=config.TRAIN_BN)
+            
 
             model = KM.Model([input_image, input_image_meta, input_anchors],
                              [detections, mrcnn_class, mrcnn_bbox,
-                                 mrcnn_mask, rpn_rois, rpn_class, rpn_bbox],
+                                 mrcnn_mask, roi_features, rpn_rois, rpn_class, rpn_bbox],
                              name='mask_rcnn')
 
         # Add multi-GPU support.
@@ -2268,7 +2269,7 @@ class MaskRCNN:
     def train(self, train_dataset, val_dataset, learning_rate, epochs, layers,
               augmentation=None, callbacks=[], use_multiprocessing=True):
 
-        """train the model.
+        """Train the model.
         train_dataset, val_dataset: Training and validation Dataset objects.
         learning_rate: The learning rate to train with
         epochs: Number of training epochs. Note that previous training epochs
@@ -2280,9 +2281,9 @@ class MaskRCNN:
             - One of these predefined values:
               heads: The RPN, classifier and mask heads of the network
               all: All the layers
-              3+: train Resnet stage 3 and up
-              4+: train Resnet stage 4 and up
-              5+: train Resnet stage 5 and up
+              3+: Train Resnet stage 3 and up
+              4+: Train Resnet stage 4 and up
+              5+: Train Resnet stage 5 and up
         augmentation: Optional. An imgaug (https://github.com/aleju/imgaug)
             augmentation. For example, passing imgaug.augmenters.Fliplr(0.5)
             flips images right/left 50% of the time. You can pass complex
@@ -2326,7 +2327,7 @@ class MaskRCNN:
                                             verbose=0, save_weights_only=True),
         ] + callbacks
 
-        # train
+        # Train
         log("\nStarting at epoch {}. LR={}\n".format(self.epoch, learning_rate))
         log("Checkpoint Path: {}".format(self.checkpoint_path))
         self.set_trainable(layers)
@@ -2393,7 +2394,7 @@ class MaskRCNN:
         windows = np.stack(windows)
         return molded_images, image_metas, windows
 
-    def unmold_detections(self, detections, mrcnn_mask, original_image_shape,
+    def unmold_detections(self, detections, mrcnn_mask, roi_features, original_image_shape,
                           image_shape, window):
         """Reformats the detections of one image from the format of the neural
         network output to a format suitable for use in the rest of the
@@ -2410,8 +2411,8 @@ class MaskRCNN:
         boxes: [N, (y1, x1, y2, x2)] Bounding boxes in pixels
         class_ids: [N] Integer class IDs for each bounding box
         scores: [N] Float probability scores of the class_id
-        masks: [height, width, num_instances] Instance masks
-        """
+        masks: [height, width, num_instances] Instance masks"""
+        
         # How many detections do we have?
         # Detections array is padded with zeros. Find the first class_id == 0.
         zero_ix = np.where(detections[:, 4] == 0)[0]
@@ -2422,6 +2423,7 @@ class MaskRCNN:
         class_ids = detections[:N, 4].astype(np.int32)
         scores = detections[:N, 5]
         masks = mrcnn_mask[np.arange(N), :, :, class_ids]
+        roi_features = roi_features[:N, :, :, :]
 
         # Translate normalized coordinates in the resized image to pixel
         # coordinates in the original image before resizing
@@ -2446,7 +2448,8 @@ class MaskRCNN:
             scores = np.delete(scores, exclude_ix, axis=0)
             masks = np.delete(masks, exclude_ix, axis=0)
             N = class_ids.shape[0]
-
+		
+		
         # Resize masks to original image size and set boundary threshold.
         full_masks = []
         for i in range(N):
@@ -2456,7 +2459,7 @@ class MaskRCNN:
         full_masks = np.stack(full_masks, axis=-1)\
             if full_masks else np.empty(original_image_shape[:2] + (0,))
 
-        return boxes, class_ids, scores, full_masks
+        return boxes, class_ids, scores, full_masks, roi_features
 
     def detect(self, images, verbose=0):
         """Runs the detection pipeline.
@@ -2499,20 +2502,37 @@ class MaskRCNN:
             log("image_metas", image_metas)
             log("anchors", anchors)
         # Run object detection
-        detections, _, _, mrcnn_mask, _, _, _ =\
+        detections, _, _, mrcnn_mask, roi_features, _, _, _ =\
             self.keras_model.predict([molded_images, image_metas, anchors], verbose=0)
+        
+        
         # Process detections
         results = []
         for i, image in enumerate(images):
-            final_rois, final_class_ids, final_scores, final_masks =\
-                self.unmold_detections(detections[i], mrcnn_mask[i],
-                                       image.shape, molded_images[i].shape,
-                                       windows[i])
+            final_rois, final_class_ids, final_scores, final_masks, final_features,\
+				= self.unmold_detections(detections[i],\
+				mrcnn_mask[i], roi_features[i], image.shape, molded_images[i].shape,\
+				windows[i])
+
+            full_float_masks = []
+            N = final_rois.shape[0]
+            for j in range(N):
+                y1, x1, y2, x2 = final_rois[j]
+                mask = skimage.transform.resize(mrcnn_mask[i, np.arange(N), :, :, final_class_ids][j], (y2 - y1, x2 - x1), order=1, mode="constant")
+
+                 # Put the mask in the right location.
+                full_float_mask = np.zeros(image.shape[:2], dtype=np.float32)
+                full_float_mask[y1:y2, x1:x2] = mask
+                full_float_masks.append(full_float_mask)
+
+
             results.append({
                 "rois": final_rois,
                 "class_ids": final_class_ids,
                 "scores": final_scores,
                 "masks": final_masks,
+                "roi_features": final_features,
+				"mrcnn_masks": np.array(full_float_masks),
             })
         return results
 
