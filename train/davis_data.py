@@ -5,7 +5,7 @@ import re
 import skimage.io
 import glob
 
-from mrcnn import config, utils
+from image_seg import config, utils
 from os.path import join, isfile, exists
 
 from sklearn.model_selection import train_test_split
