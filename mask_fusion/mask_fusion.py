@@ -104,8 +104,8 @@ class MaskFusion:
     def predict(self, masks, batch_size=1, **kwargs):
         return self.model.predict(masks, batch_size=batch_size, **kwargs)
 
-    def __call__(self, inputs):
-        return self.model(inputs)
+    def __call__(self, *args):
+        return self.model(*args)
 
 
 class EmptyMaskGenerator(ku.Sequence):

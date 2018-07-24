@@ -159,10 +159,10 @@ class MaskPropagation:
         }
         model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
-        self.model = model
+        self._model = model
 
     def load_weights(self, weights_path='./mask_prop/davis_unet_weights.h5'):
-        self.model.load_weights(weights_path)
+        self._model.load_weights(weights_path)
 
     def train(self, train_generator, val_generator, epochs=30, steps_per_epoch=500, val_steps_per_epoch=100):
         history_file = "logs/mask_propagation_history_" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
@@ -181,7 +181,7 @@ class MaskPropagation:
             CSVLogger(history_file)
         ]
 
-        history = self.model.fit_generator(
+        history = self._model.fit_generator(
             train_generator,
             steps_per_epoch=steps_per_epoch,
             validation_data=val_generator,
@@ -193,5 +193,8 @@ class MaskPropagation:
         return history
 
     def predict(self, inputs, **kwargs):
-        return self.model.predict(inputs, kwargs)
+        return self._model.predict(inputs, kwargs)
+
+    def __call__(self, *args):
+        return self._model(*args)
 
