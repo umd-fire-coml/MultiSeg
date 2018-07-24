@@ -255,6 +255,8 @@ class DAVISDataset(utils.Dataset):
         unique = np.delete(unique, index, axis=0)
 
         # tensors!
+        if len(raw_mask.shape == 3):
+           raw_mask = raw_mask[...,0]
         raw_mask = raw_mask.reshape(self.image_height, self.image_width, 1)
 
         # broadcast!!!!
