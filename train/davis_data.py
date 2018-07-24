@@ -253,7 +253,7 @@ class DAVISDataset(utils.Dataset):
 
              # section that removes/involves background
         index = np.searchsorted(unique, 255)
-        if unique.size < index:
+        if unique.size > index:
             unique = np.delete(unique, index, axis=0)
 
         # tensors!
