@@ -46,8 +46,8 @@ class DAVISConfig(config.Config):
 
 class DAVISDataset(utils.Dataset):
     # TODO not working yet
-    image_height = 2710
-    image_width = 3384
+    image_height = 480
+    image_width = 854
 
     def __init__(self, root_dir=None, random_state=42):
         super(self.__class__, self).__init__(self)
