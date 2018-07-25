@@ -81,12 +81,10 @@ class DAVISDataset(utils.Dataset):
             print(self.root_dir)
             assert exists(join(self.root_dir))
 
-            val = self.load_video(labeled=labeled, assume_match=assume_match, val_size=val_size)
+            self.load_video(labeled=labeled, assume_match=assume_match, val_size=val_size)
 
             self.save_data_to_file(pickle_path)
 
-            if val is not None:
-                return val
 
     def load_video(self, video_list_filename, labeled=True, assume_match=False):
         """Loads all the images from a particular video list into the dataset.
@@ -214,7 +212,7 @@ class MaskPropDavisDataset(object):
     # TODO: in init include way to download dataset
     # include download link and expected directory structure
 
-    def __init__(self, directory, quality: str, val_videos=[]):
+    def __init__(self, directory, quality, val_videos=[]):
         """
         :param directory: root directory of the DAVIS dataset
         :param quality: video image quality (e.g. '480p')
