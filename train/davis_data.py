@@ -81,7 +81,7 @@ class DAVISDataset(utils.Dataset):
             print(self.root_dir)
             assert exists(join(self.root_dir))
 
-            val = self.load_video(labeled=labeled, assume_match=assume_match, provide_val = provide_val, val_size=val_size)
+            val = self.load_video(root_dir, labeled=labeled, assume_match=assume_match, provide_val=provide_val, val_size=val_size)
 
             self.save_data_to_file(pickle_path)
 
