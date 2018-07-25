@@ -69,6 +69,8 @@ def unbalanced_binary_focal_loss(y_true, y_pred, gamma=5):
     :param y_pred:
     :param gamma:
     :return: total focal loss between the two masks
+
+    The focal losses are as defined in https://arxiv.org/abs/1708.02002 by Lin et al.
     """
     pt = y_true * y_pred + (1 - y_true) * (1 - y_pred)
     focal_losses = -K.pow(1 - pt, gamma) * K.log(pt)
@@ -76,7 +78,7 @@ def unbalanced_binary_focal_loss(y_true, y_pred, gamma=5):
     return K.sum(focal_losses)
 
 
-def contrastive_loss(y_true, y_pred, margin=0.25):
+def contrastive_loss(y_true, y_pred, margin=1):
     """
     Computes the contrastive loss function defined by: (1-y_true)D^2 + y_true*(relu(m-D))^2,
     where D is the mean squared error. The result is the sum of the contrastive loss for each
@@ -93,22 +95,6 @@ def contrastive_loss(y_true, y_pred, margin=0.25):
     c_loss = (1 - y_true) * mse + y_true * K.pow(K.relu(margin - mse), 2)
 
     return K.sum(c_loss)
-
-
-def incorrect_focal_loss(gamma=2., alpha=.25):
-    """
-    Defines a binary focal loss for contrastive mask loss.
-    :param gamma:
-    :param alpha:
-    :return: focal loss function
-    """
-    def focal_loss_fixed(y_true, y_pred):
-        pt_1 = tf.where(tf.equal(y_true, 1), y_pred, tf.ones_like(y_pred))
-        pt_2 = tf.where(tf.equal(y_true, 0), y_pred, tf.zeros_like(y_pred))
-        return -K.sum(alpha * K.pow(1. - pt_1, gamma) + K.log(pt_1)) - K.sum(
-            (1 - alpha) * K.pow(pt_2, gamma) * K.log(1. - pt_2))
-
-    return focal_loss_fixed
 
 
 class MaskPropagation:
