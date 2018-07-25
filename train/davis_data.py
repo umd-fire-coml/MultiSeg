@@ -81,12 +81,14 @@ class DAVISDataset(utils.Dataset):
             print(self.root_dir)
             assert exists(join(self.root_dir))
 
-            self.load_video(labeled=labeled, assume_match=assume_match, val_size=val_size)
+            val = self.load_video(labeled=labeled, assume_match=assume_match, provide_val = provide_val, val_size=val_size)
 
             self.save_data_to_file(pickle_path)
 
+            if val is not None:
+                return val
 
-    def load_video(self, video_list_filename, labeled=True, assume_match=False):
+    def load_video(self, video_list_filename, labeled=True, assume_match=False, provide_val = False, val_size= 0):
         """Loads all the images from a particular video list into the dataset.
         video_list_filename: path of the file containing the list of images
         img_dir: directory of the images
@@ -96,7 +98,26 @@ class DAVISDataset(utils.Dataset):
 
         # Get list of images for this video
         video_file = open(video_list_filename, 'r')
-        image_filenames = video_file.readlines().split(" ")
+        image_filenames = video_file.readlines()
+        if provide_val != false :
+            np.random.shuffle(image_filenames)
+            num_val = ceil(val_size * len(image_filenames))
+            val_filenames = image_filenames[:num_val]
+            val = DAVISDataset()
+            x = 0
+            for img_mask_path in val_filenames:
+                # Set paths and img_id
+                if x == 0:
+                    img_file = img_mask_path
+                    img_id = img_file[:-4]
+                    x = 1
+                elif x == 1:
+                    mask_file = img_mask_path
+                    self.add_image("DAVIS", image_id=img_id, path=img_file, mask_path=mask_file)
+                    x = 0
+            train = image_filenames[num_val:]
+            image_filenames = train
+        image_filenames = image_filenames.split(" ")
         video_file.close()
 
         if image_filenames is None:
@@ -113,7 +134,9 @@ class DAVISDataset(utils.Dataset):
             elif x == 1:
                 mask_file = img_mask_path
                 self.add_image("DAVIS", image_id=img_id, path=img_file, mask_path=mask_file)
-                x = 0;
+                x = 0
+        if provide_val != False and val is not None:
+            return val
 
     def load_image(self, image_id):
         """Load the specified image and return a [H,W,3] Numpy array.
