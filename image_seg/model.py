@@ -2500,7 +2500,7 @@ class MaskRCNN:
             log("image_metas", image_metas)
             log("anchors", anchors)
         # Run object detection
-        detections, _, _, mrcnn_mask, roi_features, _, _, _ =\
+        detections, mrcnn_class, _, mrcnn_mask, roi_features, _, _, _ =\
             self.keras_model.predict([molded_images, image_metas, anchors], verbose=0)
 
         # Process detections
@@ -2522,7 +2522,7 @@ class MaskRCNN:
                 full_float_mask[y1:y2, x1:x2] = mask
                 full_float_masks.append(full_float_mask)
 
-            float_class_ids = detections[i][:N, 4]
+            float_class_ids = mrcnn_class[i][:N]
 
             results.append({
                 "rois": final_rois,
