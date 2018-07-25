@@ -364,7 +364,7 @@ class MaskPropDavisDataset(object):
             return self.val_frame_pairs[np.random.choice(range(len(self.val_frame_pairs)))]
         return self.trn_frame_pairs[np.random.choice(range(len(self.trn_frame_pairs)))]
 
-    def data_generator(self, frame_pairs, get_model_input, batch_size=4, random_seed=42):
+    def data_generator(self, frame_pairs, get_model_input, batch_size=4, random_seed=None):
         """
         :param frame_pairs:
         :param get_model_input: function to get model input given a frame pair (i.e. apply Optical Flow)
@@ -372,7 +372,8 @@ class MaskPropDavisDataset(object):
         :param random_seed:
         """
 
-        np.random.seed(random_seed)
+        if random_seed is not None:
+            np.random.seed(random_seed)
         np.random.shuffle(frame_pairs)
 
         i = 0

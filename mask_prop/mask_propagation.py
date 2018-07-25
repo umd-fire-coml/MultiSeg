@@ -9,8 +9,8 @@ from keras.callbacks import TensorBoard, CSVLogger, ModelCheckpoint
 from keras.layers import Input, Conv2D, Dropout, MaxPooling2D, Conv2DTranspose, Concatenate
 from keras.models import Model
 from keras.optimizers import Adam
+import keras.backend as K
 from keras.backend import tf
-from keras.losses import K
 import matplotlib.pyplot as plt
 from skimage import io
 
@@ -65,6 +65,20 @@ def unbalanced_binary_focal_loss(y_true, y_pred, gamma=5):
     fl = -K.pow(1 - pt, gamma) * K.log(pt)
 
 
+def contrastive_loss(y_true, y_pred, margin=0.25):
+    """
+    (1-y_true)D^2 + y_true*(relu(m-D))^2
+    :param y_true: 
+    :param y_pred:
+    :param margin:
+    :return: 
+    """
+    mse = 0.5 * K.pow(y_true - y_pred, 2)
+    c_loss = (1 - y_true) * mse + y_true * K.pow(K.relu(margin - mse), 2)
+
+    return K.sum(c_loss)
+
+
 def incorrect_focal_loss(gamma=2., alpha=.25):
     """
     Defines a binary focal loss for contrastive mask loss.
@@ -86,7 +100,7 @@ class MaskPropagation:
         self._build_model()
         self.load_weights()
 
-    def _build_model(self, deconv_act=None):
+    def _build_model(self, optimizer=Adam(lr=1e-4), loss=contrastive_loss, deconv_act=None):
         """
         Builds the U-Net for the mask propagation network, 5 levels deep.
         :param deconv_act: activation for the deconvolutions (transposed convolutions)
@@ -157,8 +171,6 @@ class MaskPropagation:
         model = Model(inputs=[inputs], outputs=[conv10])
 
         # compile model
-        optimizer = Adam(lr=1e-4)
-        loss = unbalanced_binary_focal_loss  # 'binary_crossentropy'
         metrics = {
             'acc': 'accuracy'
         }
