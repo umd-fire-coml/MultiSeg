@@ -173,7 +173,7 @@ class MaskPropagation:
         model = Model(inputs=[inputs], outputs=[conv10])
 
         # compile model
-        metrics = ['accuracy', 'binary_crossentropy', 'sparse_categorical_crossentropy']
+        metrics = ['accuracy', 'binary_crossentropy']
         model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
         self._model = model
