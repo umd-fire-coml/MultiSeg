@@ -59,7 +59,7 @@ class DAVISDataset(utils.Dataset):
         self.root_dir = root_dir
         self.random_state = random_state
 
-    def load_data(self, root_dir, labeled=True, assume_match=False, val_size=0, use_pickle=True):
+    def load_data(self, root_dir, labeled=True, assume_match=False, val_size=0, provide_val = False, use_pickle=True):
         """Load a subset of the DAVIS image segmentation dataset.
         root_dir: Root directory of the train
         subset: Which subset to load: images will be looked for in 'subset_color' and masks will
