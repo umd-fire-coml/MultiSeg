@@ -2522,6 +2522,8 @@ class MaskRCNN:
                 full_float_mask[y1:y2, x1:x2] = mask
                 full_float_masks.append(full_float_mask)
 
+            float_class_ids = detections[i][:N, 4]
+
             results.append({
                 "rois": final_rois,
                 "class_ids": final_class_ids,
@@ -2529,6 +2531,7 @@ class MaskRCNN:
                 "masks": final_masks,
                 "roi_features": final_features,
                 "mrcnn_masks": np.array(full_float_masks),
+                "float_class_ids": float_class_ids,
             })
         return results
 
