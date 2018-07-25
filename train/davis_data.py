@@ -90,7 +90,6 @@ class DAVISDataset(utils.Dataset):
                 x = 0;
 
 
-
     def load_data(self, root_dir, labeled=True, assume_match=False, val_size=0, use_pickle=True):
         """Load a subset of the DAVIS image segmentation dataset.
         root_dir: Root directory of the train
