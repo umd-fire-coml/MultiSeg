@@ -102,7 +102,7 @@ class MaskPropagation:
         self._build_model()
         self.load_weights()
 
-    def _build_model(self, optimizer=Adam(lr=1e-4), loss=binary_focal_loss, deconv_act=None):
+    def _build_model(self, optimizer=Adam(lr=1e-4), loss='binary_cross_entropy', deconv_act=None):
         """
         Builds the U-Net for the mask propagation network, 5 levels deep.
         :param deconv_act: activation for the deconvolutions (transposed convolutions)
@@ -173,9 +173,7 @@ class MaskPropagation:
         model = Model(inputs=[inputs], outputs=[conv10])
 
         # compile model
-        metrics = {
-            'acc': 'accuracy'
-        }
+        metrics = ['accuracy', 'binary_cross_entropy', 'sparse_binary_cross_entropy']
         model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
         self._model = model
