@@ -59,7 +59,7 @@ class DAVISDataset(utils.Dataset):
         self.root_dir = root_dir
         self.random_state = random_state
 
-    def load_data(self, root_dir, labeled=True, assume_match=False, val_size=0, use_pickle=True):
+    def load_data(self, root_dir, labeled=True, assume_match=False, val_size=0, provide_val = False, use_pickle=True):
         """Load a subset of the DAVIS image segmentation dataset.
         root_dir: Root directory of the train
         subset: Which subset to load: images will be looked for in 'subset_color' and masks will
@@ -81,7 +81,7 @@ class DAVISDataset(utils.Dataset):
             print(self.root_dir)
             assert exists(join(self.root_dir))
 
-            val = self.load_video(labeled=labeled, assume_match=assume_match, provide_val = provide_val, val_size=val_size)
+            val = self.load_video(root_dir, labeled=labeled, assume_match=assume_match, provide_val=provide_val, val_size=val_size)
 
             self.save_data_to_file(pickle_path)
 
@@ -99,7 +99,7 @@ class DAVISDataset(utils.Dataset):
         # Get list of images for this video
         video_file = open(video_list_filename, 'r')
         image_filenames = video_file.readlines()
-        if provide_val != false :
+        if provide_val != False :
             np.random.shuffle(image_filenames)
             num_val = ceil(val_size * len(image_filenames))
             val_filenames = image_filenames[:num_val]
