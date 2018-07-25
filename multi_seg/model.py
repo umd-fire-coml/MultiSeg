@@ -69,9 +69,10 @@ class MultiSegNet:
 
         #
 
-        # set up input images
+        # set up inputs
         prev_image = kl.Input((None, None, 3), dtype=np.float32)
         curr_image = kl.Input((None, None, 3), dtype=np.float32)
+        flow_field = kl.Input((None, None, 2), dtype=np.float32)
 
         # retrieve list of masks to propagate forward ??
 
@@ -86,7 +87,7 @@ class MultiSegNet:
         # MASK FUSION: fuse two competing masks into a final mask output
         final_mask = MaskFusion()()
 
-        self._model = km.Model(inputs=[prev_image, curr_image], outputs=[final_mask])
+        self._model = km.Model(inputs=[prev_image, curr_image, flow_field], outputs=[final_mask])
 
     def predict(self, input_images):
         """
@@ -95,7 +96,9 @@ class MultiSegNet:
         # TODO handle special case of first frame
         assert input_images[0].shape[0] == input_images[1].shape[0]
 
-        return self._model.predict(input_images, batch_size=input_images[0].shape[0])
+        flow_field = self._optical_flow_model.infer_flow_field(*input_images)
+
+        return self._model.predict(input_images.append(flow_field), batch_size=input_images[0].shape[0])
 
     def __call__(self, *args):
         return self._model(*args)

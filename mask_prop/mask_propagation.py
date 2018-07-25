@@ -60,7 +60,7 @@ def plot_prediction(frame_pair, pred_mask):
     axes[3][1].imshow((pred_mask == 255) & (mask_curr != 255))
 
 
-def binary_focal_loss(y_true, y_pred, gamma=10):
+def binary_focal_loss(y_true, y_pred, gamma=2):
     """
     Computes a binary focal loss function defined by: -(1-pt)^gamma * log(pt), where pt is defined
     y_true * y_pred + (1-y_true) * (1-y_pred). The result is the sum of the focal losses for each

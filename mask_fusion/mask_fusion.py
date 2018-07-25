@@ -1,5 +1,5 @@
 """
-Performs mask fusion on two masks to produce a final output mask. Model is a reduced (3-level deep) U-Net
+Performs mask fusion on two masks to produce a final output mask. Model is a reduced, 3-level deep U-Net
 architecture.
 """
 
@@ -46,26 +46,26 @@ class MaskFusion:
         # build model
         input_layer = kl.Input(shape=(None, None, 2), dtype=np.float32)
 
-        conv1 = convolve(32)(input_layer)
-        conv1 = convolve(32)(conv1)
+        conv1 = convolve(16)(input_layer)
+        conv1 = convolve(16)(conv1)
         pool1 = pool(2)(conv1)
 
-        conv2 = convolve(64)(pool1)
-        conv2 = convolve(64)(conv2)
+        conv2 = convolve(32)(pool1)
+        conv2 = convolve(32)(conv2)
         pool2 = pool(2)(conv2)
 
-        conv3 = convolve(128)(pool2)
-        conv3 = convolve(128)(conv3)
+        conv3 = convolve(64)(pool2)
+        conv3 = convolve(64)(conv3)
 
-        deconv4 = deconvolve(64)(conv3)
+        deconv4 = deconvolve(32)(conv3)
         merge4 = concat()([conv2, deconv4])
-        conv4 = convolve(64)(merge4)
-        conv4 = convolve(64)(conv4)
+        conv4 = convolve(32)(merge4)
+        conv4 = convolve(32)(conv4)
 
-        deconv5 = deconvolve(64)(conv4)
+        deconv5 = deconvolve(16)(conv4)
         merge5 = concat()([conv1, deconv5])
-        conv5 = convolve(32)(merge5)
-        conv5 = convolve(32)(conv5)
+        conv5 = convolve(16)(merge5)
+        conv5 = convolve(16)(conv5)
 
         mask = convolve(1, 1, activation='sigmoid')(conv5)
 
@@ -81,7 +81,7 @@ class MaskFusion:
         self.model.load_weights(weights_path)
 
     def train(self, train_generator, val_generator, **kwargs):
-        history_file = "logs/mask_fusion_history_" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
+        history_file = "logs/mask_fusion_history__" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
 
         callbacks = [
             kc.TensorBoard(
