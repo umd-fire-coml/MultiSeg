@@ -59,6 +59,34 @@ class DAVISDataset(utils.Dataset):
         self.root_dir = root_dir
         self.random_state = random_state
 
+    def load_data(self, root_dir, labeled=True, assume_match=False, val_size=0, use_pickle=True):
+        """Load a subset of the DAVIS image segmentation dataset.
+        root_dir: Root directory of the train
+        subset: Which subset to load: images will be looked for in 'subset_color' and masks will
+        be looked for in 'subset_label' (will look for pickle file subset.pkl first)
+        labeled: Whether the images have ground-truth masks
+        assume_match: Whether to assume all images have ground-truth masks (ignored if labeled
+        is False)
+        val_size: applicable only when labeled = True. it is how much to split training for validation
+        use_pickle: If False, forces a fresh load of the files
+        """
+        self.root_dir = root_dir
+
+        pickle_path = self.root_dir + '.pkl'
+
+        if use_pickle and val_size == 0 and isfile(pickle_path):
+            self.load_data_from_file(pickle_path)
+        else:
+            # Check directories for existence
+            print(self.root_dir)
+            assert exists(join(self.root_dir))
+
+            val = self.load_video(labeled=labeled, assume_match=assume_match, val_size=val_size)
+
+            self.save_data_to_file(pickle_path)
+
+            if val is not None:
+                return val
 
     def load_video(self, video_list_filename, labeled=True, assume_match=False):
         """Loads all the images from a particular video list into the dataset.
@@ -88,36 +116,6 @@ class DAVISDataset(utils.Dataset):
                 mask_file = img_mask_path
                 self.add_image("DAVIS", image_id=img_id, path=img_file, mask_path=mask_file)
                 x = 0;
-
-
-    def load_data(self, root_dir, labeled=True, assume_match=False, val_size=0, use_pickle=True):
-        """Load a subset of the DAVIS image segmentation dataset.
-        root_dir: Root directory of the train
-        subset: Which subset to load: images will be looked for in 'subset_color' and masks will
-        be looked for in 'subset_label' (will look for pickle file subset.pkl first)
-        labeled: Whether the images have ground-truth masks
-        assume_match: Whether to assume all images have ground-truth masks (ignored if labeled
-        is False)
-        val_size: applicable only when labeled = True. it is how much to split training for validation
-        use_pickle: If False, forces a fresh load of the files
-        """
-        self.root_dir = root_dir
-        
-        pickle_path = self.root_dir + '.pkl'
-
-        if use_pickle and val_size == 0 and isfile(pickle_path):
-            self.load_data_from_file(pickle_path)
-        else:
-            # Check directories for existence
-            print(self.root_dir)
-            assert exists(join(self.root_dir))
-
-            val = self.load_video(labeled=labeled, assume_match=assume_match, val_size=val_size)
-
-            self.save_data_to_file(pickle_path)
-
-            if val is not None:
-                return val
 
     def load_image(self, image_id):
         """Load the specified image and return a [H,W,3] Numpy array.
