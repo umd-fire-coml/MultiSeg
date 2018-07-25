@@ -60,7 +60,7 @@ def plot_prediction(frame_pair, pred_mask):
     axes[3][1].imshow((pred_mask == 255) & (mask_curr != 255))
 
 
-def unbalanced_binary_focal_loss(y_true, y_pred, gamma=5):
+def binary_focal_loss(y_true, y_pred, gamma=10):
     """
     Computes a binary focal loss function defined by: -(1-pt)^gamma * log(pt), where pt is defined
     y_true * y_pred + (1-y_true) * (1-y_pred). The result is the sum of the focal losses for each
@@ -102,7 +102,7 @@ class MaskPropagation:
         self._build_model()
         self.load_weights()
 
-    def _build_model(self, optimizer=Adam(lr=1e-4), loss=unbalanced_binary_focal_loss, deconv_act=None):
+    def _build_model(self, optimizer=Adam(lr=1e-4), loss=binary_focal_loss, deconv_act=None):
         """
         Builds the U-Net for the mask propagation network, 5 levels deep.
         :param deconv_act: activation for the deconvolutions (transposed convolutions)
