@@ -61,17 +61,33 @@ def plot_prediction(frame_pair, pred_mask):
 
 
 def unbalanced_binary_focal_loss(y_true, y_pred, gamma=5):
+    """
+    Computes a binary focal loss function defined by: -(1-pt)^gamma * log(pt), where pt is defined
+    y_true * y_pred + (1-y_true) * (1-y_pred). The result is the sum of the focal losses for each
+    point.
+    :param y_true:
+    :param y_pred:
+    :param gamma:
+    :return: total focal loss between the two masks
+    """
     pt = y_true * y_pred + (1 - y_true) * (1 - y_pred)
-    fl = -K.pow(1 - pt, gamma) * K.log(pt)
+    focal_losses = -K.pow(1 - pt, gamma) * K.log(pt)
+
+    return K.sum(focal_losses)
 
 
 def contrastive_loss(y_true, y_pred, margin=0.25):
     """
-    (1-y_true)D^2 + y_true*(relu(m-D))^2
+    Computes the contrastive loss function defined by: (1-y_true)D^2 + y_true*(relu(m-D))^2,
+    where D is the mean squared error. The result is the sum of the contrastive loss for each
+    point.
     :param y_true: 
     :param y_pred:
     :param margin:
-    :return: 
+    :return: total contrastive loss between two masks
+
+    This particular contrastive loss is from a paper by Hadsell, Chopra, and LeCun:
+    http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
     """
     mse = 0.5 * K.pow(y_true - y_pred, 2)
     c_loss = (1 - y_true) * mse + y_true * K.pow(K.relu(margin - mse), 2)
@@ -100,7 +116,7 @@ class MaskPropagation:
         self._build_model()
         self.load_weights()
 
-    def _build_model(self, optimizer=Adam(lr=1e-4), loss=contrastive_loss, deconv_act=None):
+    def _build_model(self, optimizer=Adam(lr=1e-4), loss=unbalanced_binary_focal_loss, deconv_act=None):
         """
         Builds the U-Net for the mask propagation network, 5 levels deep.
         :param deconv_act: activation for the deconvolutions (transposed convolutions)
