@@ -99,7 +99,7 @@ class DAVISDataset(utils.Dataset):
         # Get list of images for this video
         video_file = open(video_list_filename, 'r')
         image_filenames = video_file.readlines()
-        if provide_val != false :
+        if provide_val != False :
             np.random.shuffle(image_filenames)
             num_val = ceil(val_size * len(image_filenames))
             val_filenames = image_filenames[:num_val]
