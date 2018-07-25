@@ -9,8 +9,8 @@ from keras.callbacks import TensorBoard, CSVLogger, ModelCheckpoint
 from keras.layers import Input, Conv2D, Dropout, MaxPooling2D, Conv2DTranspose, Concatenate
 from keras.models import Model
 from keras.optimizers import Adam
+import keras.backend as K
 from keras.backend import tf
-from keras.losses import K
 import matplotlib.pyplot as plt
 from skimage import io
 
@@ -60,20 +60,41 @@ def plot_prediction(frame_pair, pred_mask):
     axes[3][1].imshow((pred_mask == 255) & (mask_curr != 255))
 
 
-def binary_focal_loss(gamma=2., alpha=.25):
+def binary_focal_loss(y_true, y_pred, gamma=10):
     """
-    Defines a binary focal loss for contrastive mask loss.
+    Computes a binary focal loss function defined by: -(1-pt)^gamma * log(pt), where pt is defined
+    y_true * y_pred + (1-y_true) * (1-y_pred). The result is the sum of the focal losses for each
+    point.
+    :param y_true:
+    :param y_pred:
     :param gamma:
-    :param alpha:
-    :return: focal loss function
-    """
-    def focal_loss_fixed(y_true, y_pred):
-        pt_1 = tf.where(tf.equal(y_true, 1), y_pred, tf.ones_like(y_pred))
-        pt_2 = tf.where(tf.equal(y_true, 0), y_pred, tf.zeros_like(y_pred))
-        return -K.sum(alpha * K.pow(1. - pt_1, gamma) * K.log(pt_1)) - K.sum(
-            (1 - alpha) * K.pow(pt_2, gamma) * K.log(1. - pt_2))
+    :return: total focal loss between the two masks
 
-    return focal_loss_fixed
+    The focal losses are as defined in https://arxiv.org/abs/1708.02002 by Lin et al.
+    """
+    pt = y_true * y_pred + (1 - y_true) * (1 - y_pred)
+    focal_losses = -K.pow(1 - pt, gamma) * K.log(pt)
+
+    return K.sum(focal_losses)
+
+
+def contrastive_loss(y_true, y_pred, margin=1):
+    """
+    Computes the contrastive loss function defined by: (1-y_true)D^2 + y_true*(relu(m-D))^2,
+    where D is the mean squared error. The result is the sum of the contrastive loss for each
+    point.
+    :param y_true: 
+    :param y_pred:
+    :param margin:
+    :return: total contrastive loss between two masks
+
+    This particular contrastive loss is from a paper by Hadsell, Chopra, and LeCun:
+    http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
+    """
+    mse = 0.5 * K.pow(y_true - y_pred, 2)
+    c_loss = (1 - y_true) * mse + y_true * K.pow(K.relu(margin - mse), 2)
+
+    return K.sum(c_loss)
 
 
 class MaskPropagation:
@@ -81,7 +102,7 @@ class MaskPropagation:
         self._build_model()
         self.load_weights()
 
-    def _build_model(self, deconv_act=None):
+    def _build_model(self, optimizer=Adam(lr=1e-4), loss=binary_focal_loss, deconv_act=None):
         """
         Builds the U-Net for the mask propagation network, 5 levels deep.
         :param deconv_act: activation for the deconvolutions (transposed convolutions)
@@ -152,11 +173,7 @@ class MaskPropagation:
         model = Model(inputs=[inputs], outputs=[conv10])
 
         # compile model
-        optimizer = Adam(lr=1e-4)
-        loss = binary_focal_loss()  # 'binary_crossentropy'
-        metrics = {
-            'acc': 'accuracy'
-        }
+        metrics = ['binary_accuracy', 'binary_crossentropy']
         model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
         self._model = model

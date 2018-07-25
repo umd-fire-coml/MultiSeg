@@ -32,7 +32,7 @@ model = MaskPropagation()
 ##########################################################################
 
 
-def get_model_input(img_prev_p, img_curr_p, mask_prev_p, mask_curr_p):
+def get_model_input(img_prev_p, img_curr_p, mask_prev_p, mask_curr_p, report_errors=False):
     """
     Returns tensor that contains previous mask and optical flow, and also
     returns current mask as the ground truth value.
@@ -41,10 +41,10 @@ def get_model_input(img_prev_p, img_curr_p, mask_prev_p, mask_curr_p):
 
     # Check 1
     if img_prev.shape != img_curr.shape:
-        print("ERROR: img_prev.shape != img_curr.shape", img_prev_p, img_prev.shape, img_curr.shape)
+        if report_errors: print("ERROR: img_prev.shape != img_curr.shape", img_prev_p, img_prev.shape, img_curr.shape)
         return None, None
     if img_prev.shape != (480, 864, 3):
-        print("ERROR: img_prev.shape != (480, 864, 3)", img_prev_p, img_prev.shape)
+        if report_errors: print("ERROR: img_prev.shape != (480, 864, 3)", img_prev_p, img_prev.shape)
         return None, None
 
     finalflow = optical_flow.infer_flow_field(img_prev, img_curr)
@@ -54,7 +54,7 @@ def get_model_input(img_prev_p, img_curr_p, mask_prev_p, mask_curr_p):
 
     # Check 2
     if finalflow.shape != (480, 864, 2):
-        print("ERROR: finalflow.shape != (480, 864, 2)", img_prev_p, finalflow.shape)
+        if report_errors: print("ERROR: finalflow.shape != (480, 864, 2)", img_prev_p, finalflow.shape)
         return None, None
 
     mask_prev = pad_image(io.imread(mask_prev_p)) / 255
@@ -62,10 +62,10 @@ def get_model_input(img_prev_p, img_curr_p, mask_prev_p, mask_curr_p):
 
     # Check 3
     if mask_prev.shape != mask_curr.shape:
-        print("ERROR: mask_prev.shape != mask_curr.shape", img_prev_p, mask_prev.shape, mask_curr.shape)
+        if report_errors: print("ERROR: mask_prev.shape != mask_curr.shape", img_prev_p, mask_prev.shape, mask_curr.shape)
         return None, None
     if mask_prev.shape != (480, 864):
-        print("ERROR: mask_prev.shape != (480, 864)", img_prev_p, mask_prev.shape)
+        if report_errors: print("ERROR: mask_prev.shape != (480, 864)", img_prev_p, mask_prev.shape)
         return None, None
 
     model_input = np.stack([mask_prev, finalflow[:, :, 0], finalflow[:, :, 1]], axis=2)
