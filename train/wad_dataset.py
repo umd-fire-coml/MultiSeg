@@ -88,23 +88,22 @@ class WadDataset(utils.Dataset):
     image_height = 2710
     image_width = 3384
 
-    def __init__(self, root_dir=None, random_state=None):
+    def __init__(self, random_state: int = None):
         super(self.__class__, self).__init__(self)
 
         # Add classes (35)
         for class_id, class_name in class_names.items():
             self.add_class(self.name, classes_to_index[class_id], class_name)
 
-        # set internal configurations
-        self.root_dir = './' if root_dir is None else root_dir
+        # set internal configuration
         self.random_state = 42 if random_state is None else random_state
 
-    def load_video(self, video_list_filename, labeled=True, assume_match=False):
+    def load_video(self, video_list_filename: str, labeled: bool = True, assume_match: bool = False):
         """Loads all the images from a particular video list into the dataset.
-        video_list_filename: path of the file containing the list of images
-        img_dir: directory of the images
-        mask_dir: directory of the mask images, if available
-        assume_match: Whether to assume all images have ground-truth masks
+        :param video_list_filename: path of the file containing the list of images
+        :param labeled: whether the images have a corresponding mask (and which
+        file format to assume)
+        :param assume_match: whether to assume the gt mask file exists
         """
 
         # Get list of images for this video
@@ -138,12 +137,11 @@ class WadDataset(utils.Dataset):
             # Add the image to the dataset
             self.add_image(self.name, image_id=img_id, path=img_file, mask_path=mask_file)
 
-    def _load_all_images(self, labeled=True, assume_match=False):
+    def _load_all_images(self, labeled: bool = True, assume_match: bool = False):
         """Load all images from the img_dir directory, with corresponding masks
         if doing training.
-        assume_match: Whether to assume all images have ground-truth masks (ignored if mask_dir
-        is None)
-        val_size: only applicable if we are labeled train
+        :param labeled: whether the images have a corresponding mask
+        :param assume_match: whether to assume all images have ground-truth masks (ignored if labeled is false)
         """
 
         # Retrieve list of all images in directory
@@ -166,15 +164,16 @@ class WadDataset(utils.Dataset):
             # Adds the image to the dataset
             self.add_image('WAD', img_id, img_filename, mask_path=mask_filename)
 
-    def load_data(self, root_dir, subset, labeled=True, assume_match=False, use_pickle=True):
+    def load_data(self, root_dir: str, subset: str,
+                  labeled: bool = True, assume_match: bool = False, use_pickle: bool = True):
         """Load a subset of the WAD image segmentation dataset.
-        root_dir: Root directory of the train
-        subset: Which subset to load: images will be looked for in 'subset_color' and masks will
+        :param root_dir: Root directory of the train
+        :param subset: Which subset to load: images will be looked for in 'subset_color' and masks will
         be looked for in 'subset_label' (will look for pickle file subset.pkl first)
-        labeled: Whether the images have ground-truth masks
-        assume_match: Whether to assume all images have ground-truth masks (ignored if labeled
+        :param labeled: Whether the images have ground-truth masks
+        :param assume_match: whether to assume the mask files for all images exist (ignored if labeled
         is False)
-        use_pickle: If False, forces a fresh load of the files
+        :param use_pickle: If False, forces a fresh load of the files
         """
 
         self.root_dir = join(root_dir, subset)
@@ -195,7 +194,7 @@ class WadDataset(utils.Dataset):
             # save list of images for future speed improvements
             self.save_data_to_file(pickle_path)
 
-    def load_image(self, image_id):
+    def load_image(self, image_id: int) -> np.ndarray:
         """Load the specified image and return a [H,W,3] Numpy array.
         image_id: integer id of the image
         """
@@ -216,7 +215,7 @@ class WadDataset(utils.Dataset):
 
         return image
 
-    def load_mask(self, image_id):
+    def load_mask(self, image_id: int) -> (np.ndarray, np.ndarray):
         """Generate instance masks for an image.
         image_id: integer id of the image
         Returns:
@@ -257,20 +256,20 @@ class WadDataset(utils.Dataset):
         # Return mask, and array of class IDs of each instance.
         return masks, class_ids
 
-    def load_data_from_file(self, filename):
+    def load_data_from_file(self, filename: str):
         """Load images from pickled file.
         filename: name of the pickle file
         """
         with open(filename, 'rb') as f:
             self.image_info = pickle.load(f)
 
-    def save_data_to_file(self, filename):
+    def save_data_to_file(self, filename: str):
         """Save loaded images to pickle file.
         filename: name of the pickle file"""
         with open(filename, 'wb') as f:
             pickle.dump(self.image_info, f)
 
-    def image_reference(self, image_id):
+    def image_reference(self, image_id: int) -> str:
         """Return the image filename."""
 
         info = self.image_info[image_id]

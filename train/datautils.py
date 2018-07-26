@@ -24,6 +24,7 @@ def split_dataset(dataset: Dataset, *splits: float, shuffle=True) -> list:
     amounts for other purposes.
     """
     # TODO since we no longer need to start from back, do everything non-reversed
+    # To Be Considered: moving this to the dataset superclass?
     if sum(splits) > 1.:
         raise ValueError('splits can sum to at most 1.0')
 

@@ -4,7 +4,7 @@ from train.datautils import split_dataset
 if __name__ == '__main__':
     root_dir = 'G:/Team Drives/COML-Summer-2018/Data/CVPR-WAD-2018/'
 
-    dataset = WadDataset(root_dir)
+    dataset = WadDataset()
     dataset.load_data(root_dir, 'train')
     dataset.prepare()
     print(dataset.num_images, '\n~~~~~~~~~~')
