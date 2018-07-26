@@ -2,6 +2,8 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
+# TODO rewrite for one of our datasets
+
 # Root directory of the project
 ROOT_DIR = os.path.abspath("C:\\Users\\rmdu\\Image_Seg")
 os.chdir(ROOT_DIR)

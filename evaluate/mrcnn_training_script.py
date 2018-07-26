@@ -43,16 +43,16 @@ sys.path.append(MRCNN_DIR)
 
 import mrcnn.model as modellib
 
-from data.wad_data import WADConfig, WADDataset
+from train.wad_data import WadConfig, WadDataset
 
-cfg = WADConfig()
+cfg = WadConfig()
 cfg.IMAGES_PER_GPU = 2
 cfg.STEPS_PER_EPOCH = train_steps
 cfg.VALIDATION_STEPS = val_steps
 cfg.display()
 
-dataset_train = WADDataset()
-dataset_val = dataset_train.load_data(DATA_DIR, "train", val_size=val_size)
+dataset_train = WadDataset()
+dataset_val = dataset_train.load_data(DATA_DIR, "train", val_size=val_size)  # TODO fix with new splitting mechanism
 
 dataset_train.prepare()
 dataset_val.prepare()
