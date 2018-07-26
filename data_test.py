@@ -9,7 +9,7 @@ if __name__ == '__main__':
     dataset.prepare()
     print(dataset.num_images, '\n~~~~~~~~~~')
 
-    subsets = split_dataset(dataset, 0.5, 0.25)
+    subsets = split_dataset(dataset, 0.25, 0.5, 0.25)
 
     for subset in subsets:
         print(subset.num_images)
