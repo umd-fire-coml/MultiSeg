@@ -19,7 +19,7 @@ from os.path import join, isfile, exists
 
 from sklearn.model_selection import train_test_split
 
-__all__ = ['WadConfig', 'generate_wad_datasets']
+__all__ = ['WadConfig']
 
 ###############################################################################
 #                              CLASS DICTIONARIES                             #
@@ -140,7 +140,7 @@ class WadDataset(utils.Dataset):
             # Add the image to the dataset
             self.add_image(self.name, image_id=img_id, path=img_file, mask_path=mask_file)
 
-    def _load_all_images(self, labeled=True, assume_match=False, val_size=0):
+    def _load_all_images(self, labeled=True, assume_match=False):
         """Load all images from the img_dir directory, with corresponding masks
         if doing training.
         assume_match: Whether to assume all images have ground-truth masks (ignored if mask_dir
@@ -150,49 +150,6 @@ class WadDataset(utils.Dataset):
 
         # Retrieve list of all images in directory
         images = next(os.walk(self.root_dir + '_color'))[2]
-
-        if val_size > 0:
-            imgs_train, imgs_val = train_test_split(images, test_size=val_size, random_state=self.random_state)
-
-            val_part = WadDataset()
-            val_part.root_dir = self.root_dir
-
-            # Iterate through images and add to dataset
-            for img_filename in imgs_train:
-                img_id = img_filename[:-4]
-
-                # If using masks, only add images to dataset that also have a mask
-                if labeled:
-                    mask_filename = img_id + '_instanceIds.png'
-
-                    # Ignores the image (doesn't add) if no mask exists
-                    if not assume_match and not isfile(join(self.root_dir + '_label', mask_filename)):
-                        continue
-                else:
-                    mask_filename = None
-
-                # Adds the image to the dataset
-                self.add_image('WAD', img_id, img_filename, mask_path=mask_filename)
-
-            for img_filename in imgs_val:
-                img_id = img_filename[:-4]
-
-                # If using masks, only add images to dataset that also have a mask
-                if labeled:
-                    mask_filename = img_id + '_instanceIds.png'
-
-                    # Ignores the image (doesn't add) if no mask exists
-                    if not assume_match and not isfile(join(self.root_dir + '_label', mask_filename)):
-                        continue
-                else:
-                    mask_filename = None
-
-                # Adds the image to the dataset
-                val_part.add_image('WAD', img_id, img_filename, mask_path=mask_filename)
-
-            return val_part
-
-        # otherwise val 0 do the normal process
 
         # Iterate through images and add to dataset
         for img_filename in images:
@@ -211,7 +168,7 @@ class WadDataset(utils.Dataset):
             # Adds the image to the dataset
             self.add_image('WAD', img_id, img_filename, mask_path=mask_filename)
 
-    def load_data(self, root_dir, subset, labeled=True, assume_match=False, val_size=0, use_pickle=True):
+    def load_data(self, root_dir, subset, labeled=True, assume_match=False, use_pickle=True):
         """Load a subset of the WAD image segmentation dataset.
         root_dir: Root directory of the train
         subset: Which subset to load: images will be looked for in 'subset_color' and masks will
@@ -219,7 +176,6 @@ class WadDataset(utils.Dataset):
         labeled: Whether the images have ground-truth masks
         assume_match: Whether to assume all images have ground-truth masks (ignored if labeled
         is False)
-        val_size: applicable only when labeled = True. it is how much to split training for validation
         use_pickle: If False, forces a fresh load of the files
         """
 
@@ -227,24 +183,19 @@ class WadDataset(utils.Dataset):
 
         pickle_path = self.root_dir + '.pkl'
 
-        if use_pickle and val_size == 0 and isfile(pickle_path):
+        if use_pickle and isfile(pickle_path):
             self.load_data_from_file(pickle_path)
         else:
             # Check directories for existence
-            print(self.root_dir)
             assert exists(self.root_dir + '_color')
             if labeled:
                 assert exists(self.root_dir + '_label')
 
-            if labeled:
-                val = self._load_all_images(labeled=labeled, assume_match=assume_match, val_size=val_size)
-            else:
-                self._load_all_images(labeled=labeled, assume_match=assume_match)
+            # blindly load all images
+            self._load_all_images(labeled=labeled, assume_match=assume_match)
 
+            # save list of images for future speed improvements
             self.save_data_to_file(pickle_path)
-
-            if val is not None:
-                return val
 
     def load_image(self, image_id):
         """Load the specified image and return a [H,W,3] Numpy array.
@@ -332,9 +283,3 @@ class WadDataset(utils.Dataset):
         else:
             super(self.__class__, self).image_reference(image_id)
 
-
-def generate_wad_datasets(root_dir: str, val_split : float = 0.2) -> (WadDataset, WadDataset):
-    if val_split > 1. or val_split < 0.:
-        raise ValueError('validation split must be in [0, 1]')
-
-    return None, None
