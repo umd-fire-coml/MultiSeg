@@ -1,3 +1,13 @@
+"""
+Wrapper class and associated information for the 2018 CVPR WAD dataset
+primarily for use with mrcnn, but also includes utilities for working
+with other networks in this project.
+
+Current Usage:
+train_dataset = Dataset(root_dir=<root directory for data>)
+
+"""
+
 import numpy as np
 import os
 import pickle
@@ -9,7 +19,7 @@ from os.path import join, isfile, exists
 
 from sklearn.model_selection import train_test_split
 
-__all__ = ['class_names', 'classes_to_index', 'index_to_classes', 'index_to_class_names', 'WADConfig', 'WADDataset']
+__all__ = ['WadConfig', 'generate_wad_datasets']
 
 ###############################################################################
 #                              CLASS DICTIONARIES                             #
@@ -53,7 +63,7 @@ class_names = {
     113: 'vegetation'
 }
 
-classes_to_index = dict([(e, i + 1) for i, e in enumerate(class_names.keys())])
+classes_to_index = {e: i + 1 for i, e in enumerate(class_names.keys())}
 index_to_classes = {v: k for k, v in classes_to_index.items()}
 index_to_class_names = {v: class_names[k] for k, v in classes_to_index.items()}
 
@@ -62,8 +72,7 @@ index_to_class_names = {v: class_names[k] for k, v in classes_to_index.items()}
 #                                CONFIGURATION                                #
 ###############################################################################
 
-
-class WADConfig(config.Config):
+class WadConfig(config.Config):
     NAME = 'WAD'
 
     NUM_CLASSES = len(class_names) + 1
@@ -75,20 +84,22 @@ class WADConfig(config.Config):
 #                                   DATASET                                   #
 ###############################################################################
 
+class WadDataset(utils.Dataset):
+    name = 'WAD'
 
-class WADDataset(utils.Dataset):
     image_height = 2710
     image_width = 3384
 
-    def __init__(self, root_dir=None, random_state=42):
+    def __init__(self, root_dir=None, random_state=None):
         super(self.__class__, self).__init__(self)
 
         # Add classes (35)
         for class_id, class_name in class_names.items():
-            self.add_class('WAD', classes_to_index[class_id], class_name)
+            self.add_class(self.name, classes_to_index[class_id], class_name)
 
-        self.root_dir = root_dir
-        self.random_state = random_state
+        # set internal configurations
+        self.root_dir = './' if root_dir is None else root_dir
+        self.random_state = 42 if random_state is None else random_state
 
     def load_video(self, video_list_filename, labeled=True, assume_match=False):
         """Loads all the images from a particular video list into the dataset.
@@ -127,7 +138,7 @@ class WADDataset(utils.Dataset):
                 mask_file = None
 
             # Add the image to the dataset
-            self.add_image("WAD", image_id=img_id, path=img_file, mask_path=mask_file)
+            self.add_image(self.name, image_id=img_id, path=img_file, mask_path=mask_file)
 
     def _load_all_images(self, labeled=True, assume_match=False, val_size=0):
         """Load all images from the img_dir directory, with corresponding masks
@@ -143,7 +154,7 @@ class WADDataset(utils.Dataset):
         if val_size > 0:
             imgs_train, imgs_val = train_test_split(images, test_size=val_size, random_state=self.random_state)
 
-            val_part = WADDataset()
+            val_part = WadDataset()
             val_part.root_dir = self.root_dir
 
             # Iterate through images and add to dataset
@@ -285,9 +296,8 @@ class WADDataset(utils.Dataset):
         # tensors!
         raw_mask = raw_mask.reshape(self.image_height, self.image_width, 1)
 
-        # broadcast!!!!
         # k = instance_count
-        # (h, w, 1) x (k,) => (h, w, k) : bool array
+        # broadcast (h, w, 1) x (k,) => (h, w, k) : bool array
         masks = raw_mask == unique
 
         # get the actually class id
@@ -316,8 +326,15 @@ class WADDataset(utils.Dataset):
 
         info = self.image_info[image_id]
 
-        if info["source"] == "WAD":
-            return info["path"]
+        if info["source"] == self.name:
+            # TODO return a meaningful and correct path
+            return join(self.root_dir, info["path"])
         else:
             super(self.__class__, self).image_reference(image_id)
 
+
+def generate_wad_datasets(root_dir: str, val_split : float = 0.2) -> (WadDataset, WadDataset):
+    if val_split > 1. or val_split < 0.:
+        raise ValueError('validation split must be in [0, 1]')
+
+    return None, None
