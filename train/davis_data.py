@@ -190,7 +190,7 @@ class MaskPropDavisDataset(object):
     # TODO: in init include way to download dataset
     # include download link and expected directory structure
 
-    def __init__(self, directory, quality, val_videos=[]):
+    def __init__(self, directory, quality, val_videos=()):
         """
         :param directory: root directory of the DAVIS dataset
         :param quality: video image quality (e.g. '480p')
@@ -198,6 +198,8 @@ class MaskPropDavisDataset(object):
         self.frame_pairs = an array of tuples of the form:
         (img_prev, img_curr, mask_prev, mask_curr) PATHS
         """
+
+        # TODO currently fails silently
 
         # generate mask pairs
 

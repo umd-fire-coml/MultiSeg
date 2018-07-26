@@ -100,7 +100,10 @@ def contrastive_loss(y_true, y_pred, margin=1):
 class MaskPropagation:
     def __init__(self):
         self._build_model()
-        self.load_weights()
+        try:
+            self.load_weights()
+        except OSError:
+            print('No default weights found. Please load your own.')
 
     def _build_model(self, optimizer=Adam(lr=1e-4), loss='binary_crossentropy', deconv_act=None):
         """
