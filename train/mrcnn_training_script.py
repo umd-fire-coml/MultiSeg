@@ -43,7 +43,7 @@ sys.path.append(MRCNN_DIR)
 
 import image_seg.model as modellib
 
-from train.wad_data import WadConfig, WadDataset
+from train.wad_dataset import WadConfig, WadDataset
 
 cfg = WadConfig()
 cfg.IMAGES_PER_GPU = 2

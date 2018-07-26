@@ -40,6 +40,7 @@ def split_dataset(dataset: Dataset, *splits: float, shuffle=True) -> list:
         split_datasets.append(new_dataset)
 
     dataset.image_info = dataset.image_info[min(curr_index, len(dataset.image_info)):]
+    dataset.prepare()
     split_datasets.append(dataset)
 
     return list(reversed(split_datasets))

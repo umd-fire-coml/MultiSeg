@@ -62,18 +62,10 @@ class Davis2016Dataset(utils.Dataset):
         """
         self.root_dir = root_dir
 
-        pickle_path = self.root_dir + '.pkl'
-
         # Check directories for existence
-        print(self.root_dir)
-        assert exists(join(self.root_dir))
+        assert exists(join(self.root_dir)), 'the root directory doesn\'t exist'
 
-        val = self.load_video(root_dir, labeled=labeled, assume_match=assume_match, provide_val=provide_val, val_size=val_size)
-
-        self.save_data_to_file(pickle_path)
-
-        if val is not None:
-            return val
+        self.load_video(root_dir, labeled=labeled, assume_match=assume_match, provide_val=provide_val, val_size=val_size)
 
     def load_video(self, video_list_filename, labeled=True, assume_match=False, provide_val=False, val_size=0):
         """Loads all the images from a particular video list into the dataset.

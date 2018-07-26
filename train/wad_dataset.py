@@ -17,8 +17,6 @@ import skimage.io
 from image_seg import config, utils
 from os.path import join, isfile, exists
 
-from sklearn.model_selection import train_test_split
-
 __all__ = ['WadConfig', 'WadDataset', 'class_names', 'classes_to_index', 'index_to_classes', 'index_to_class_names']
 
 ###############################################################################

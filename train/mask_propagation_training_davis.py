@@ -9,7 +9,7 @@ gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.75)
 sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 
 # Our own modules
-from train.davis_data import MaskPropDavisDataset
+from train.davis2016_dataset import MaskPropDavisDataset
 from opt_flow.pwc_net_wrapper import PWCNetWrapper
 from mask_prop.mask_propagation import *
 
