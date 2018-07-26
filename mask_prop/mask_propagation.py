@@ -212,7 +212,8 @@ class MaskPropagation:
         return history
 
     def predict(self, inputs):
-        return self._model.predict(inputs, batch_size=inputs.shape[0])
+        batch_size = len(inputs) if inputs is list else 1
+        return self._model.predict(inputs, batch_size=batch_size)
 
     def __call__(self, *args):
         return self._model(*args)
