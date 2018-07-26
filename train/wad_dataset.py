@@ -82,6 +82,8 @@ class WadConfig(config.Config):
 #                                   DATASET                                   #
 ###############################################################################
 
+# TODO cleanup
+
 class WadDataset(utils.Dataset):
     name = 'WAD'
 
@@ -175,7 +177,6 @@ class WadDataset(utils.Dataset):
         is False)
         :param use_pickle: If False, forces a fresh load of the files
         """
-
         self.root_dir = join(root_dir, subset)
 
         pickle_path = self.root_dir + '.pkl'

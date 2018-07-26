@@ -1,20 +1,16 @@
+import glob
 import numpy as np
-import os
-import pickle
 import re
 import skimage.io
-import glob
 
 from image_seg import config, utils
-from os.path import join, isfile, exists
-
-from sklearn.model_selection import train_test_split
+from os.path import join, exists
 
 ###############################################################################
 #                              CLASS DICTIONARIES                             #
 ###############################################################################
 
-class_names = {
+classes = {
     0: 'No Mask',
     1: 'Mask'
 }
@@ -26,7 +22,7 @@ class_names = {
 
 class DAVISConfig(config.Config):
     NAME = 'DAVIS'
-    NUM_CLASSES = len(class_names) + 1
+    NUM_CLASSES = len(classes) + 1
     BACKBONE = 'resnet101'
 
 
@@ -44,83 +40,49 @@ class Davis2016Dataset(utils.Dataset):
         super(self.__class__, self).__init__(self)
 
         # Add classes (35)
-        for class_id, class_name in class_names.items():
+        for class_id, class_name in classes.items():
             self.add_class(self.name, class_id, class_name)
 
         self.root_dir = root_dir
         self.random_state = random_state
 
-    def load_data(self, root_dir, labeled=True, assume_match=False, val_size=0, provide_val=False):
+    def load_data(self, root_dir, labeled=True, assume_match=False):
         """Load a subset of the DAVIS image segmentation dataset.
-        root_dir: Root directory of the train
-        subset: Which subset to load: images will be looked for in 'subset_color' and masks will
+        :param root_dir: Root directory of the train
+        :param subset: Which subset to load: images will be looked for in 'subset_color' and masks will
         be looked for in 'subset_label' (will look for pickle file subset.pkl first)
-        labeled: Whether the images have ground-truth masks
-        assume_match: Whether to assume all images have ground-truth masks (ignored if labeled
+        :param labeled: Whether the images have ground-truth masks
+        :param assume_match: Whether to assume all images have ground-truth masks (ignored if labeled
         is False)
-        val_size: applicable only when labeled = True. it is how much to split training for validation
         """
         self.root_dir = root_dir
 
         # Check directories for existence
         assert exists(join(self.root_dir)), 'the root directory doesn\'t exist'
+        # TODO fill in (incomplete implementation)
+        self.load_video(root_dir, labeled=labeled, assume_match=assume_match)
 
-        self.load_video(root_dir, labeled=labeled, assume_match=assume_match, provide_val=provide_val, val_size=val_size)
-
-    def load_video(self, video_list_filename, labeled=True, assume_match=False, provide_val=False, val_size=0):
+    def load_video(self, video_list_filename, labeled=True, assume_match=False):
         """Loads all the images from a particular video list into the dataset.
-        video_list_filename: path of the file containing the list of images
-        img_dir: directory of the images
-        mask_dir: directory of the mask images, if available
-        assume_match: Whether to assume all images have ground-truth masks
+        :param video_list_filename: path of the file containing the list of images
+        :param labeled: whether these images have corresponding labels
+        :param assume_match: Whether to assume all images have ground-truth masks
         """
-
+        # TODO add error checking everywhere
+        # involve those unused parameters
         # Get list of images for this video
         video_file = open(video_list_filename, 'r')
-        image_filenames = video_file.readlines()
+        image_filename_pairs = video_file.readlines()
         video_file.close()
 
-        if provide_val:
-            np.random.shuffle(image_filenames)
-            num_val = max(round(val_size * len(image_filenames)), len(image_filenames))
-            val_filenames = image_filenames[:num_val]
-            val = Davis2016Dataset()
-            x = 0
-            for img_mask_path in val_filenames:
-                # Set paths and img_id
-                if x == 0:
-                    img_file = img_mask_path
-                    img_id = img_file[:-4]
-                    x = 1
-                elif x == 1:
-                    mask_file = img_mask_path
-                    self.add_image(self.name, image_id=img_id, path=img_file, mask_path=mask_file)
-                    x = 0
-            train = image_filenames[num_val:]
-            image_filenames = train
-        image_filenames = image_filenames.split(" ")
-
-        if image_filenames is None:
-            print('No video list found at {}.'.format(video_list_filename))
-            return
-        x = 0
-        # Generate images and masks
-        for img_mask_path in image_filenames:
-            # Set paths and img_id
-            if x == 0:
-                img_file = img_mask_path
-                img_id = img_file[:-4]
-                x = 1
-            elif x == 1:
-                mask_file = img_mask_path
-                self.add_image("DAVIS", image_id=img_id, path=img_file, mask_path=mask_file)
-                x = 0
-        if provide_val and val is not None:
-            return val
+        for pair in image_filename_pairs:
+            image_filename, mask_filename = pair.split(' ')
+            image_id = re.match('some regex', image_filename)  # fill in regex
+            self.add_image(self.name, image_id=image_id, path=image_filename, mask_path=mask_filename)
 
     def load_image(self, image_id: int):
         """Load the specified image and return a [H,W,3] Numpy array.
-        image_id: integer id of the image (less than num_images)
+        :param image_id: integer id of the image (less than num_images)
         """
 
         info = self.image_info[image_id]
@@ -198,8 +160,8 @@ class MaskPropDavisDataset(object):
         self.trn_frame_pairs = []  # tuples of image and masks at t-1 and t
         self.val_frame_pairs = []
 
-        image_dir = "%s/JPEGImages/%s/" % (directory, quality)
-        mask_dir = "%s/Annotations/%s/" % (directory, quality)
+        image_dir = f"{directory}/JPEGImages/{quality}/"
+        mask_dir = f"{directory}/Annotations/{quality}/"
 
         # CHANGE HERE: splitting into train_videos and val_videos
         videos = [x[len(image_dir):] for x in glob.glob(image_dir + "*")]
