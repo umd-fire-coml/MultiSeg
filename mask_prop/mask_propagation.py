@@ -100,8 +100,9 @@ def contrastive_loss(y_true, y_pred, margin=1):
 class MaskPropagation:
     def __init__(self, weights_path=None):
         self._build_model()
+
         if weights_path is not None:
-            self.load_weights()
+            self.load_weights(weights_path)
 
     def _build_model(self, optimizer=Adam(lr=1e-4), loss='binary_crossentropy', deconv_act=None):
         """
