@@ -41,7 +41,7 @@ print("Size of val set: ", val_steps * batch_size)
 # to import local version of the library
 sys.path.append(MRCNN_DIR)
 
-import mrcnn.model as modellib
+import image_seg.model as modellib
 
 from train.wad_data import WadConfig, WadDataset
 

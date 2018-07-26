@@ -11,7 +11,7 @@ sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 # Our own modules
 from train.davis_data import MaskPropDavisDataset
 from opt_flow.pwc_net_wrapper import PWCNetWrapper
-from .mask_propagation import *
+from mask_prop.mask_propagation import *
 
 ##########################################################################
 #
@@ -32,6 +32,7 @@ model = MaskPropagation()
 ##########################################################################
 
 
+# TODO move these functions into either davis_data or elsewhere
 def get_model_input(img_prev_p, img_curr_p, mask_prev_p, mask_curr_p, report_errors=False):
     """
     Returns tensor that contains previous mask and optical flow, and also

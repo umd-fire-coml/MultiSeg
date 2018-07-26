@@ -3,7 +3,7 @@ Wrapper class and associated information for the 2018 CVPR WAD dataset
 primarily for use with mrcnn, but also includes utilities for working
 with other networks in this project.
 
-Current Usage:
+Usage:
 train_dataset = Dataset(root_dir=<root directory for data>)
 
 """
@@ -19,7 +19,7 @@ from os.path import join, isfile, exists
 
 from sklearn.model_selection import train_test_split
 
-__all__ = ['WadConfig']
+__all__ = ['WadConfig', 'WadDataset', 'class_names', 'classes_to_index', 'index_to_classes', 'index_to_class_names']
 
 ###############################################################################
 #                              CLASS DICTIONARIES                             #
