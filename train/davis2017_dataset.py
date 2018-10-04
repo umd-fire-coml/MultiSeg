@@ -1,10 +1,9 @@
+import numpy as np
 import os
 from os import path
+from PIL import Image
 import skimage
 from warnings import warn
-
-from PIL import Image
-import numpy as np
 
 from image_seg import utils
 
@@ -31,9 +30,17 @@ class Davis2017Dataset(utils.Dataset):
      * load_video - loads a particular video from a particular subset of the data
      * load_frame - loads a particular frame from a particular video from a particular subset of the data
 
+    After loading images, you must call prepare() in order for the dataset to be
+    use properly. Once you call prepare(), you can load images/masks.
+
     Methods for Actually Loading Images:
      * load_image - returns the image tensor
-     * load_mask - returns the mask tensor and class array
+     * load_mask - returns the mask tensor and instance array of classes
+        * has_mask - returns whether the image_id has a mask in the dataset
+          (call this before load_mask() )
+
+    Generators:
+     * TODO finish writing
     """
     name = 'DAVIS2017'
 
@@ -49,7 +56,9 @@ class Davis2017Dataset(utils.Dataset):
         self.data_dir = data_dir
 
     @property
-    def all_masked(self):
+    def all_masked(self) -> bool:
+        """Whether all images in this dataset have a mask. This method is O(n),
+        although the coefficients are relatively small."""
         for img_dict in self.image_info:
             if 'mask_path' not in img_dict:
                 return False
@@ -132,18 +141,11 @@ class Davis2017Dataset(utils.Dataset):
 
         mask_path = self.build_absolute_path_to('labels', info['mask_path'])
 
-        # mask = skimage.io.imread(mask_path)
-
-        mask = np.atleast_3d(Image.open(mask_path))[..., 0]
-        mask = np.expand_dims(mask, axis=2)
-
-        uniqs = np.expand_dims(np.expand_dims(np.unique(mask), axis=0), axis=0)
-        uniqs = np.delete(uniqs, 0)
-
-        mask_tensor = mask == uniqs
+        mask = np.expand_dims(np.atleast_3d(Image.open(mask_path))[..., 0], axis=2)
+        uniqs = np.delete(np.expand_dims(np.expand_dims(np.unique(mask), axis=0), axis=0), 0)
 
         # Return mask and class of mask
-        return mask_tensor, uniqs
+        return mask == uniqs, uniqs
 
     def __str__(self):
         try:
@@ -208,6 +210,7 @@ def _load_predefined(root_dir, subset, quality) -> Davis2017Dataset:
 def get_trainval(root_dir, quality='480p') -> Davis2017Dataset:
     """
     Returns the prepared trainval dataset as defined by DAVIS 2017.
+    :param root_dir: root directory of the dataset
     :param quality: {_quality_param_desc}
     :return: trainval dataset for quality requested
     """
@@ -218,6 +221,7 @@ def get_trainval(root_dir, quality='480p') -> Davis2017Dataset:
 def get_test_dev(root_dir, quality='480p') -> Davis2017Dataset:
     """
     Returns the prepared test-dev dataset as defined by DAVIS 2017.
+    :param root_dir: root directory of the dataset
     :param quality: {_quality_param_desc}
     :return: test-dev dataset for quality requested
     """
@@ -228,9 +232,9 @@ def get_test_dev(root_dir, quality='480p') -> Davis2017Dataset:
 def get_test_challenge(root_dir, quality='480p') -> Davis2017Dataset:
     """
     Returns the prepared test-challenge dataset as defined by DAVIS 2017.
+    :param root_dir: root directory of the dataset
     :param quality: {_quality_param_desc}
     :return: test-challenge dataset for quality requested
     """
 
     return _load_predefined(root_dir, 'test-challenge', quality)
-
