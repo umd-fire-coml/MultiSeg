@@ -142,9 +142,6 @@ class Davis2017Dataset(utils.Dataset):
 
         mask_tensor = mask == uniqs
 
-        # extra info from davis2017 official util function
-        # np.array(im.getpalette()).reshape((-1, 3))
-
         # Return mask and class of mask
         return mask_tensor, uniqs
 
