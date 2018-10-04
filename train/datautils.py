@@ -1,10 +1,11 @@
 from copy import deepcopy
 import numpy as np
+from typing import List
 
 from image_seg.utils import Dataset
 
 
-def split_dataset(dataset: Dataset, *splits: float, shuffle=True) -> list:
+def splitd(dataset: Dataset, *splits: float, shuffle=True) -> List[Dataset]:
     """
     Utility function that splits a *prepared* dataset object (that is, you've
     called dataset.prepare() ) into multiple datasets based on splits.
@@ -16,7 +17,7 @@ def split_dataset(dataset: Dataset, *splits: float, shuffle=True) -> list:
     objects. If the splits sum to 1.0, then passing in 'k' splits will return
     'k' datasets.
 
-    The intuition behind the two different use cases are as follow: if you pass
+    The intuition behind the two different use cases is as follow: if you pass
     in a set of splits that sum to 1.0, you want to clearly (and explicitly)
     define how much data each dataset will end up with (as a portion of the
     whole dataset). In contrast, passing in a set of splits that don't sum to
@@ -24,7 +25,7 @@ def split_dataset(dataset: Dataset, *splits: float, shuffle=True) -> list:
     amounts for other purposes.
     """
     # TODO since we no longer need to start from back, do everything non-reversed
-    # To Be Considered: moving this to the dataset superclass?
+
     if sum(splits) > 1.:
         raise ValueError('splits can sum to at most 1.0')
 
@@ -65,4 +66,20 @@ def split_dataset(dataset: Dataset, *splits: float, shuffle=True) -> list:
 
     # reverse (since we starting splitting from the end) and return the datasets
     return list(reversed(split_datasets))
+
+
+def merge_data(*datasets : Dataset) -> Dataset:
+    """
+    Utility function that merges a set of datasets containing
+    :param datasets: datasets to merge together
+    :return:
+    """
+    assert len(datasets) > 0
+
+    new_dataset = deepcopy(datasets[0])
+
+    for dataset in datasets:
+        new_dataset.image_info.extend(dataset.image_info)
+
+    return new_dataset
 

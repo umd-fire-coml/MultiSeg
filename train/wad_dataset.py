@@ -249,7 +249,7 @@ class WadDataset(utils.Dataset):
         # broadcast (h, w, 1) x (k,) => (h, w, k) : bool array
         masks = raw_mask == unique
 
-        # get the actually class id
+        # get the actual class id
         # int(PixelValue / 1000) is the label (class of object)
         unique = np.floor_divide(unique, 1000)
         class_ids = np.array([classes_to_index[e] for e in unique])
