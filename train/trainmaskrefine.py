@@ -11,21 +11,21 @@ from opt_flow.pwc_net_wrapper import *
 commands = ['train', 'augs']
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser('Train mask refine module')
+    parser = argparse.ArgumentParser()
     parser.add_argument('cmd', choices=commands,
                         default=commands[0],
                         help='Display plots of the augmented masks used for training',
                         )
     parser.add_argument('-d', '--dataset', dest='dataset_path', type=str,
-                        nargs=2,
-                        default=['-d', 'G:\\Team Drives\\COML-Fall-2018\\T0-VidSeg\Data\\DAVIS'],
+                        nargs=1,
+                        default='G:\\Team Drives\\COML-Fall-2018\\T0-VidSeg\Data\\DAVIS',
                         )
 
     args = parser.parse_args()
 
     ##############################################################
 
-    dataset = get_trainval(args.dataset_path[1])
+    dataset = get_trainval(args.dataset_path)
 
     seq = iaa.Sequential([
         iaa.ElasticTransformation(alpha=(200, 1000), sigma=(20, 100)),
