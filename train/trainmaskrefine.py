@@ -13,7 +13,7 @@ commands = ['train', 'augs']
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Train mask refine module')
     parser.add_argument('cmd', choices=commands,
-                        default=commands[0], required=False,
+                        default=commands[0],
                         help='Display plots of the augmented masks used for training',
                         )
     parser.add_argument('-d', '--dataset', dest='dataset_path', type=str,
