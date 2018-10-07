@@ -183,12 +183,20 @@ class Davis2017Dataset(utils.Dataset):
 
         ordered_ids = deepcopy(self.image_ids[1:])
         shuffle(ordered_ids)
+        sentinel = -1
 
         id_queue = deque(ordered_ids)
+        id_queue.appendleft(sentinel)
 
         while True:
             # process the next image
             curr_id = id_queue.pop()
+
+            # reshuffle if reached the sentinel
+            if curr_id == sentinel:
+                shuffle(id_queue)
+                id_queue.appendleft(sentinel)
+                continue
 
             # skip this pair if not in the same video
             if self.image_info[curr_id]['video'] != self.image_info[curr_id - 1]['video']:
@@ -215,7 +223,7 @@ class Davis2017Dataset(utils.Dataset):
 
                 yield X, y
 
-            # add the image to the back of the queue TODO: make the order of subsequent iterations newly random
+            # add the image to the back of the queue
             id_queue.appendleft(curr_id)
 
     def build_absolute_path_to(self, selection: str, video_and_filename: str) -> str:
