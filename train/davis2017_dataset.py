@@ -154,7 +154,7 @@ class Davis2017Dataset(utils.Dataset):
     def load_int_mask(self, image_id: int):
         mask, ids = self.load_mask(image_id)
 
-        return mask.astype(int), ids
+        return 255 * mask.astype(int), ids
 
     def load_float_mask(self, image_id: int):
         mask, ids = self.load_mask(image_id)
@@ -206,14 +206,13 @@ class Davis2017Dataset(utils.Dataset):
             prev_image = self.load_image(curr_id - 1)
             curr_image = self.load_image(curr_id)
             gt_masks, _ = self.load_float_mask(curr_id)
+            aug_masks, _ = self.load_int_mask(curr_id)
 
             # generate a pair for each mask instance
             for i in range(gt_masks.shape[-1]):
                 if mask_as_input:
-                    aug_mask = np.expand_dims(gt_masks[..., i], axis=2)
-                    print(aug_mask.shape)
-                    # aug_mask = augmentation.augment_image(aug_mask)
-                    # TODO get imgaug to work
+                    aug_mask = np.expand_dims(aug_masks[..., i], axis=2)
+                    aug_mask = augmentation.augment_image(aug_mask)
 
                     X = np.concatenate((prev_image, curr_image, aug_mask), axis=2)
                 else:

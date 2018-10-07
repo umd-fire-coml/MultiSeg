@@ -17,22 +17,19 @@ if __name__ == '__main__':
     dataset = get_trainval(data_dir)
 
     seq = iaa.Sequential([
-        iaa.MedianBlur(k=(11, 13))
+        iaa.ElasticTransformation(alpha=(10, 1000), sigma=(10, 100)),
+        iaa.GaussianBlur(sigma=(0.1, 7.5)),
+        iaa.AdditiveGaussianNoise(scale=10)
+
     ])
 
-    gen = dataset.paired_generator(augmentation=seq)
+    gen = dataset.paired_generator(seq)
 
-    X, y = next(gen)
-    print(X.shape, y.shape)
+    for X, y in gen:
+        import matplotlib.pyplot as plt
 
-    import matplotlib.pyplot as plt
-
-    plt.imshow(X[..., :3].astype(int))
-    plt.show()
-    plt.imshow(X[..., 3:6].astype(int))
-    plt.show()
-    plt.imshow(X[..., 6].astype(int))
-    plt.show()
-    plt.imshow(y[..., 0])
-    plt.show()
+        plt.imshow(X[..., 6].astype(int))
+        plt.show()
+        plt.imshow(y.astype(int))
+        plt.show()
 
