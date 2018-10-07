@@ -16,13 +16,16 @@ if __name__ == '__main__':
                         default=commands[0], required=False,
                         help='Display plots of the augmented masks used for training',
                         )
+    parser.add_argument('-d', '--dataset', dest='dataset_path', type=str,
+                        nargs=2,
+                        default=['-d', 'G:\\Team Drives\\COML-Fall-2018\\T0-VidSeg\Data\\DAVIS'],
+                        )
 
     args = parser.parse_args()
 
     ##############################################################
 
-    data_dir = 'G:\\Team Drives\\COML-Fall-2018\\T0-VidSeg\Data\\DAVIS'
-    dataset = get_trainval(data_dir)
+    dataset = get_trainval(args.dataset_path[1])
 
     seq = iaa.Sequential([
         iaa.ElasticTransformation(alpha=(200, 1000), sigma=(20, 100)),
