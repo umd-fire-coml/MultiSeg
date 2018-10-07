@@ -1,7 +1,11 @@
+from collections import deque
+from copy import deepcopy
+import imgaug.augmenters as iaa
 import numpy as np
 import os
 from os import path
 from PIL import Image
+from random import shuffle
 import skimage
 from warnings import warn
 
@@ -104,9 +108,9 @@ class Davis2017Dataset(utils.Dataset):
         mask_path_to_store = path.join(video, f'{img_id}.png')
 
         if path.exists(self.build_absolute_path_to('labels', mask_path_to_store)):
-            self.add_image(self.name, img_id, img_path_to_store, mask_path=mask_path_to_store)
+            self.add_image(self.name, img_id, img_path_to_store, mask_path=mask_path_to_store, video=video)
         else:
-            self.add_image(self.name, img_id, img_path_to_store)
+            self.add_image(self.name, img_id, img_path_to_store, video=video)
 
     def load_image(self, image_id: int):
         info = self.image_info[image_id]
@@ -147,11 +151,72 @@ class Davis2017Dataset(utils.Dataset):
         # Return mask and class of mask
         return mask == uniqs, uniqs
 
+    def load_int_mask(self, image_id: int):
+        mask, ids = self.load_mask(image_id)
+
+        return mask.astype(int), ids
+
+    def load_float_mask(self, image_id: int):
+        mask, ids = self.load_mask(image_id)
+
+        return mask.astype(np.float32), ids
+
     def __str__(self):
         try:
             return f'<Davis 2017 Dataset: {len(self.image_ids)} images prepared >'
-        except:
+        except AttributeError:
             return '<Davis 2017 Dataset (unprepared)>'
+
+    def paired_generator(self, augmentation=iaa.Noop(), mask_as_input=True):
+        """
+        Creates generator that returns pairs of consecutive images (as input)
+        and the mask for the second image (as ground truth).
+        :param augmentation: augmentations to perform on each mask (as input)
+        :param mask_as_input: whether to add a mask as part of the input stack
+        If mask_as_input is False, mask_augs is ignored.
+
+        X: previous image, current image, (mask as input)
+        y: ground truth mask
+        """
+
+        augmentation = augmentation.to_deterministic()
+
+        ordered_ids = deepcopy(self.image_ids[1:])
+        shuffle(ordered_ids)
+
+        id_queue = deque(ordered_ids)
+
+        while True:
+            # process the next image
+            curr_id = id_queue.pop()
+
+            # skip this pair if not in the same video
+            if self.image_info[curr_id]['video'] != self.image_info[curr_id - 1]['video']:
+                continue
+
+            # load originals
+            prev_image = self.load_image(curr_id - 1)
+            curr_image = self.load_image(curr_id)
+            gt_masks, _ = self.load_float_mask(curr_id)
+
+            # generate a pair for each mask instance
+            for i in range(gt_masks.shape[-1]):
+                if mask_as_input:
+                    aug_mask = np.expand_dims(gt_masks[..., i], axis=2)
+                    print(aug_mask.shape)
+                    # aug_mask = augmentation.augment_image(aug_mask)
+                    # TODO get imgaug to work
+
+                    X = np.concatenate((prev_image, curr_image, aug_mask), axis=2)
+                else:
+                    X = np.concatenate((prev_image, curr_image), axis=3)
+
+                y = np.expand_dims(gt_masks[..., i], axis=2)
+
+                yield X, y
+
+            # add the image to the back of the queue TODO: make the order of subsequent iterations newly random
+            id_queue.appendleft(curr_id)
 
     def build_absolute_path_to(self, selection: str, video_and_filename: str) -> str:
         """

@@ -10,7 +10,6 @@ from keras.layers import Input, Conv2D, Dropout, MaxPooling2D, Conv2DTranspose, 
 from keras.models import Model
 from keras.optimizers import Adam
 import keras.backend as K
-from keras.backend import tf
 import matplotlib.pyplot as plt
 from skimage import io
 

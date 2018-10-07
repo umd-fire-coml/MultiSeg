@@ -11,7 +11,7 @@ sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 # Our own modules
 from train.davis2016_dataset import MaskPropDavisDataset
 from opt_flow.pwc_net_wrapper import PWCNetWrapper
-from mask_prop.mask_propagation import *
+from mask_refine.mask_propagation import *
 
 ##########################################################################
 #
