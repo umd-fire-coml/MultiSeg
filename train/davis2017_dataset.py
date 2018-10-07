@@ -77,6 +77,8 @@ class Davis2017Dataset(utils.Dataset):
         :param videos: an iterable of strings, containing the names of the videos to load
         """
 
+        print(self.build_absolute_path_to('images', ''))
+
         if len(videos) == 0:
             _, videos, _ = next(os.walk(self.build_absolute_path_to('images', '')))
 
