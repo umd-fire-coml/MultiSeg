@@ -25,7 +25,7 @@ if __name__ == '__main__':
 
     ##############################################################
 
-    dataset = get_trainval(args.dataset_path)
+    dataset = get_trainval(args.dataset_path[0])
 
     seq = iaa.Sequential([
         iaa.ElasticTransformation(alpha=(200, 1000), sigma=(20, 100)),
