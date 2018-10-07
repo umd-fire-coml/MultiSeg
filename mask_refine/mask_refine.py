@@ -158,7 +158,7 @@ class MaskRefineSubnet:
         FLOW  [h,w,2]
         """
 
-        return self._model.predict(input_stack, batch_size=input_stack.shape[0])
+        return self._model.predict(input_stack, batch_size=1)
 
     @staticmethod
     def build_input_stack(image, mask, flow_field):
@@ -178,15 +178,24 @@ class MaskRefineModule:
         self.optical_flow_model = optical_flow_model
         self.mask_refine_subnet = mask_refine_subnet
 
-        self._build_model()
+    def train(self, train_generator, val_generator):
+        def with_optical_flow(gen):
+            while True:
+                X, y = next(gen)
 
-    def _build_model(self):
+                flow_field = self.optical_flow_model.infer_flow_field(
+                    X[..., 1:3],
+                    X[..., 3:6])
+                Xnew = MaskRefineSubnet.build_input_stack(
+                    X[..., 3:6],
+                    X[..., 6],
+                    flow_field)
 
-        # TODO finish
+                yield Xnew, y
 
-        # model = Model(inputs=[], outputs=[])
-
-        pass
+        return self.mask_refine_subnet.train(
+            with_optical_flow(train_generator),
+            with_optical_flow(val_generator))
 
     def refine_mask(self, input_stack):
         """
@@ -204,7 +213,7 @@ class MaskRefineModule:
 
         subnet_input_stack = np.concatenate((input_stack[..., 3:6],), axis=2)
 
-        self.mask_refine_subnet.predict()
+        self.mask_refine_subnet.predict(subnet_input_stack)
 
         pass
 

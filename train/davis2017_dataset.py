@@ -168,7 +168,7 @@ class Davis2017Dataset(utils.Dataset):
             return '<Davis 2017 Dataset (unprepared)>'
 
     def paired_generator(self, augmentation=iaa.Noop(), mask_as_input=True):
-        """
+        """ TODO different batch sizes?
         Creates generator that returns pairs of consecutive images (as input)
         and the mask for the second image (as ground truth).
         :param augmentation: augmentations to perform on each mask (as input)

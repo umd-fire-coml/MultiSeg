@@ -24,7 +24,6 @@ def splitd(dataset: Dataset, *splits: float, shuffle=True) -> List[Dataset]:
     1.0 follows the logic of taking a dataset and 'stripping off' certain
     amounts for other purposes.
     """
-    # TODO since we no longer need to start from back, do everything non-reversed
 
     if sum(splits) > 1.:
         raise ValueError('splits can sum to at most 1.0')
@@ -68,7 +67,7 @@ def splitd(dataset: Dataset, *splits: float, shuffle=True) -> List[Dataset]:
     return list(reversed(split_datasets))
 
 
-def merge_data(*datasets : Dataset) -> Dataset:
+def merged(*datasets : Dataset) -> Dataset:
     """
     Utility function that merges a set of datasets containing
     :param datasets: datasets to merge together
