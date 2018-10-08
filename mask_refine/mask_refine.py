@@ -3,6 +3,7 @@ from keras.callbacks import TensorBoard, CSVLogger, ModelCheckpoint
 from keras.layers import Input, Conv2D, Dropout, MaxPooling2D, Conv2DTranspose, Concatenate
 from keras.models import Model
 from keras.optimizers import Adam
+import math
 import numpy as np
 
 from opt_flow.pwc_net_wrapper import PWCNetWrapper
@@ -182,6 +183,13 @@ class MaskRefineModule:
         def with_optical_flow(gen):
             while True:
                 X, y = next(gen)
+
+                # pads images with zeros to the next largest multiple of 64
+                h_, w_ = math.ceil(X.shape[0] / 64) * 64, math.ceil(X.shape[1] / 64) * 64
+                h_pad, w_pad = h_ - X.shape[0], w_ - X.shape[1]
+                X = np.pad(X, ((math.floor(h_pad / 2), math.ceil(h_pad / 2)),
+                               (math.floor(w_pad / 2), math.ceil(w_pad / 2)),
+                               (0, 0)), mode='constant')
 
                 flow_field = self.optical_flow_model.infer_flow_field(
                     X[..., 1:3],
