@@ -192,7 +192,7 @@ class MaskRefineModule:
                                (0, 0)), mode='constant')
 
                 flow_field = self.optical_flow_model.infer_flow_field(
-                    X[..., 1:3],
+                    X[..., 0:3],
                     X[..., 3:6])
                 Xnew = MaskRefineSubnet.build_input_stack(
                     X[..., 3:6],
