@@ -52,7 +52,7 @@ if __name__ == '__main__':
         train, val = splitd(dataset, 1 - args.val_split, args.val_split)
         train_gen, val_gen = train.paired_generator(), val.paired_generator()
 
-        pwc_net = PWCNetWrapper(args.optical_flow_path)
+        pwc_net = PWCNetWrapper(model_pathname=args.optical_flow_path[0])
         mr_subnet = MaskRefineSubnet()
         mr_module = MaskRefineModule(pwc_net, mr_subnet)
 
