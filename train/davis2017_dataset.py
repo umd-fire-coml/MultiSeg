@@ -44,7 +44,7 @@ class Davis2017Dataset(utils.Dataset):
           (call this before load_mask() )
 
     Generators:
-     * TODO finish writing
+     * paired_generator - TODO finish writing documentation
     """
     name = 'DAVIS2017'
 
@@ -76,8 +76,6 @@ class Davis2017Dataset(utils.Dataset):
         loaded; otherwise, all available videos will be loaded.
         :param videos: an iterable of strings, containing the names of the videos to load
         """
-
-        print(self.build_absolute_path_to('images', ''))
 
         if len(videos) == 0:
             _, videos, _ = next(os.walk(self.build_absolute_path_to('images', '')))

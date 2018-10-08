@@ -20,6 +20,11 @@ if __name__ == '__main__':
                         nargs=1,
                         default='G:\\Team Drives\\COML-Fall-2018\\T0-VidSeg\Data\\DAVIS',
                         )
+    parser.add_argument('-o', '--optical-flow', dest='optical_flow_path', type=str,
+                        nargs=1,
+                        default='./pwc_net.pth.tar')
+    parser.add_argument('-v', '--validation-split', dest='val_split', type=float,
+                        nargs=1, default=0.2)
 
     args = parser.parse_args()
 
@@ -44,10 +49,10 @@ if __name__ == '__main__':
             plt.imshow(y[..., 0])
             plt.show()
     elif args.cmd == 'train':
-        train, val = splitd(dataset, 0.8, 0.2)  # TODO parametrize this
+        train, val = splitd(dataset, 1 - args.val_split, args.val_split)
         train_gen, val_gen = train.paired_generator(), val.paired_generator()
 
-        pwc_net = PWCNetWrapper()
+        pwc_net = PWCNetWrapper(args.optical_flow_path)
         mr_subnet = MaskRefineSubnet()
         mr_module = MaskRefineModule(pwc_net, mr_subnet)
 
