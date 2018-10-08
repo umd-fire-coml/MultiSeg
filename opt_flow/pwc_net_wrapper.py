@@ -43,7 +43,7 @@ class PWCNetWrapper:
         H_, W_ = int(ceil(H/divisor) * divisor), int(ceil(W/divisor) * divisor)
 
         for i in range(len(img_all)):
-            img_all[i] = cv2.resize(img_all[i], (W_, H_))
+            img_all[i] = cv2.resize(img_all[i], None, (W_, H_))
 
         for _i, _inputs in enumerate(img_all):
             img_all[_i] = img_all[_i][:, :, ::-1]
