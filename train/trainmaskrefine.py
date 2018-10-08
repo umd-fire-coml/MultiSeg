@@ -25,10 +25,11 @@ if __name__ == '__main__':
                         default='./pwc_net.pth.tar')
     parser.add_argument('-v', '--validation-split', dest='val_split', type=float,
                         nargs=1, default=0.2)
+    parser.add_argument('-p', '--print-debugs', dest='print_debugs', action='store_true')
 
     args = parser.parse_args()
 
-    ##############################################################
+    ############################################################################
 
     dataset = get_trainval(args.dataset_path[0])
 
@@ -50,9 +51,16 @@ if __name__ == '__main__':
             plt.show()
     elif args.cmd == 'train':
         train, val = splitd(dataset, 1 - args.val_split, args.val_split)
-        train_gen, val_gen = train.paired_generator(), val.paired_generator()
+        train_gen, val_gen = train.paired_generator(seq), val.paired_generator(seq)
 
         pwc_net = PWCNetWrapper(model_pathname=args.optical_flow_path[0])
         mr_subnet = MaskRefineSubnet()
         mr_module = MaskRefineModule(pwc_net, mr_subnet)
+
+        if args.print_debugs:
+            print('Starting MaskRefine training...')
+
+        hist = mr_module.train(train_gen, val_gen)
+        if args.print_debugs:
+            print(hist)
 
