@@ -3,6 +3,11 @@
 import argparse
 import imgaug.augmenters as iaa
 
+from keras.backend import tf
+
+gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.75)
+sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+
 from opt_flow.pwc_net_wrapper import *
 from mask_refine.mask_refine import MaskRefineSubnet, MaskRefineModule
 from train.davis2017_dataset import *
