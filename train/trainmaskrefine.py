@@ -3,10 +3,10 @@
 import argparse
 import imgaug.augmenters as iaa
 
+from opt_flow.pwc_net_wrapper import *
 from mask_refine.mask_refine import MaskRefineSubnet, MaskRefineModule
 from train.davis2017_dataset import *
 from train.datautils import splitd
-from opt_flow.pwc_net_wrapper import *
 
 commands = ['train', 'augs']
 
