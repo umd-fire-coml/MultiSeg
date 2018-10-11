@@ -3,7 +3,6 @@
 logs/
 results/
 temp/
-test/
 
 # DS_Store for Macs
 **/.DS_Store
