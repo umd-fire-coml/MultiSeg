@@ -57,8 +57,7 @@ class PWCNetWrapper:
             img_all[_i] = img_all[_i].expand(1, img_all[_i].size()[0], img_all[_i].size()[1], img_all[_i].size()[2])
             img_all[_i] = img_all[_i].float()
 
-        with torch.no_grad():
-            img_all = torch.autograd.Variable(torch.cat(img_all, 1).cuda())
+        img_all = torch.autograd.Variable(torch.cat(img_all, 1).cuda(), volatile=True)
         
         flo = self.net(img_all)
         flo = flo[0] * 20.0

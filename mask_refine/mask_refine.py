@@ -196,7 +196,7 @@ class MaskRefineModule:
                     X[..., 3:6])
                 Xnew = MaskRefineSubnet.build_input_stack(
                     X[..., 3:6],
-                    X[..., 6],
+                    np.expand_dims(X[..., 6], axis=2),
                     flow_field)
 
                 yield Xnew, y
