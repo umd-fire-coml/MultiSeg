@@ -11,8 +11,8 @@ Licensed under the MIT License (see LICENSE for details)
 from __future__ import absolute_import, division, print_function
 from copy import deepcopy
 from skimage.io import imread
-from model_pwcnet import ModelPWCNet, _DEFAULT_PWCNET_TEST_OPTIONS
-from visualize import display_img_pairs_w_flows
+from opt_flow.model_pwcnet import ModelPWCNet, _DEFAULT_PWCNET_TEST_OPTIONS
+from opt_flow.visualize import display_img_pairs_w_flows
 
 # TODO: Set device to use for inference
 # Here, we're using a GPU (use '/device:CPU:0' to run inference on the CPU)

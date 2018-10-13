@@ -16,8 +16,8 @@ from skimage.io import imread, imsave
 import cv2
 from sklearn.model_selection import train_test_split
 
-from dataset_base import OpticalFlowDataset, _DATASET_ROOT, _DEFAULT_DS_TRAIN_OPTIONS
-from optflow import flow_read, flow_write
+from opt_flow.dataset_base import OpticalFlowDataset, _DATASET_ROOT, _DEFAULT_DS_TRAIN_OPTIONS
+from opt_flow.optflow import flow_read, flow_write
 
 _FLYINGTHINGS3D_ROOT = '//naspro/devt/datasets/FlyingThings3D'
 _FLYINGTHINGS3DHALFRES_ROOT = _DATASET_ROOT + 'FlyingThings3D_HalfRes'

@@ -18,8 +18,8 @@ from tqdm import tqdm
 from skimage.io import imread
 import cv2
 
-from augment import Augmenter
-from optflow import flow_read
+from opt_flow.augment import Augmenter
+from opt_flow.optflow import flow_read
 
 if sys.platform.startswith("win"):
     _DATASET_ROOT = 'E:/datasets/'

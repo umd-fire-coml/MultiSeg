@@ -12,7 +12,7 @@ from __future__ import absolute_import, division, print_function
 import os
 from sklearn.model_selection import train_test_split
 
-from dataset_base import OpticalFlowDataset, _DATASET_ROOT, _DEFAULT_DS_TRAIN_OPTIONS
+from opt_flow.dataset_base import OpticalFlowDataset, _DATASET_ROOT, _DEFAULT_DS_TRAIN_OPTIONS
 
 _MPISINTEL_ROOT = _DATASET_ROOT + 'MPI-Sintel'
 

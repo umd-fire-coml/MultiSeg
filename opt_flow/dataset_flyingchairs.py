@@ -13,7 +13,7 @@ import os
 import random
 from sklearn.model_selection import train_test_split
 
-from dataset_base import OpticalFlowDataset, _DATASET_ROOT, _DEFAULT_DS_TRAIN_OPTIONS
+from opt_flow.dataset_base import OpticalFlowDataset, _DATASET_ROOT, _DEFAULT_DS_TRAIN_OPTIONS
 
 _FLYINGCHAIRS_ROOT = _DATASET_ROOT + 'FlyingChairs_release'
 

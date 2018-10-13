@@ -2,7 +2,7 @@ from __future__ import absolute_import, division, print_function
 
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from model_pwcnet import ModelPWCNet, _DEFAULT_PWCNET_TEST_OPTIONS
+from opt_flow.model_pwcnet import ModelPWCNet, _DEFAULT_PWCNET_TEST_OPTIONS
 
 # declare for import *
 __all__ = ['OpticalFlowNetwork', 'TensorFlowPWCNet']

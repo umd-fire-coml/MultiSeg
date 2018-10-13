@@ -13,8 +13,8 @@ Licensed under the MIT License (see LICENSE for details)
 from __future__ import absolute_import, division, print_function
 import numpy as np
 
-from augment import Augmenter
-from dataset_base import OpticalFlowDataset, _DEFAULT_DS_TRAIN_OPTIONS
+from opt_flow.augment import Augmenter
+from opt_flow.dataset_base import OpticalFlowDataset, _DEFAULT_DS_TRAIN_OPTIONS
 
 
 class MixedDataset(OpticalFlowDataset):

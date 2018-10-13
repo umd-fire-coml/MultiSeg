@@ -15,8 +15,8 @@ from tqdm import tqdm
 import cv2
 from sklearn.model_selection import train_test_split
 
-from dataset_base import OpticalFlowDataset, _DATASET_ROOT, _DEFAULT_DS_TRAIN_OPTIONS
-from optflow import flow_read
+from opt_flow.dataset_base import OpticalFlowDataset, _DATASET_ROOT, _DEFAULT_DS_TRAIN_OPTIONS
+from opt_flow.optflow import flow_read
 
 _KITTI2012_ROOT = _DATASET_ROOT + 'KITTI12'
 _KITTI2015_ROOT = _DATASET_ROOT + 'KITTI15'
