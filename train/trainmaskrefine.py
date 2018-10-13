@@ -3,8 +3,6 @@
 import argparse
 import imgaug.augmenters as iaa
 
-from opt_flow.opt_flow import TensorFlowPWCNet
-from mask_refine.mask_refine import MaskRefineSubnet, MaskRefineModule
 from train.davis2017_dataset import *
 from train.datautils import splitd
 
@@ -27,11 +25,27 @@ if __name__ == '__main__':
                         nargs=1, default=0.2)
     parser.add_argument('-p', '--print-debugs', dest='print_debugs', action='store_true')
 
+    ############################################################################
+
     args = parser.parse_args()
+
+    cmd = args.cmd
+    dataset_path = args.dataset_path[0]
+    optical_flow_path = args.optical_flow_path
+    val_split = args.val_split
+    print_debugs = args.print_debugs
+
+    print('Arguments given to trainmaskrefine command: ')
+    print(f'\tcommand\t{cmd}')
+    print(f'\tdataset\t{dataset_path}')
+    print(f'\toptical\t{optical_flow_path}')
+    print(f'\tval split\t{val_split}')
+    print(f'\tdebugs\t{print_debugs}')
+    print()
 
     ############################################################################
 
-    dataset = get_trainval(args.dataset_path[0])
+    dataset = get_trainval(dataset_path)
 
     seq = iaa.Sequential([
         iaa.ElasticTransformation(alpha=(200, 1000), sigma=(20, 100)),
@@ -50,10 +64,13 @@ if __name__ == '__main__':
             plt.imshow(y[..., 0])
             plt.show()
     elif args.cmd == 'train':
-        train, val = splitd(dataset, 1 - args.val_split, args.val_split)
+        from opt_flow.opt_flow import TensorFlowPWCNet
+        from mask_refine.mask_refine import MaskRefineSubnet, MaskRefineModule
+
+        train, val = splitd(dataset, 1 - val_split, val_split)
         train_gen, val_gen = train.paired_generator(seq), val.paired_generator(seq)
 
-        pwc_net = TensorFlowPWCNet(model_pathname=args.optical_flow_path[0])
+        pwc_net = TensorFlowPWCNet(model_pathname=optical_flow_path)
         mr_subnet = MaskRefineSubnet()
         mr_module = MaskRefineModule(pwc_net, mr_subnet)
 
