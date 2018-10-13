@@ -6,7 +6,7 @@ from keras.optimizers import Adam
 import math
 import numpy as np
 
-from opt_flow.pwc_net_wrapper import PWCNetWrapper
+from opt_flow.opt_flow import OpticalFlowNetwork
 
 __all__ = ['MaskRefineSubnet', 'MaskRefineModule']
 
@@ -175,7 +175,7 @@ class MaskRefineModule:
     the subnetworks here, just assembly and pipelining.
     """
 
-    def __init__(self, optical_flow_model: PWCNetWrapper, mask_refine_subnet: MaskRefineSubnet):
+    def __init__(self, optical_flow_model: OpticalFlowNetwork, mask_refine_subnet: MaskRefineSubnet):
         self.optical_flow_model = optical_flow_model
         self.mask_refine_subnet = mask_refine_subnet
 
@@ -191,9 +191,7 @@ class MaskRefineModule:
                                (math.floor(w_pad / 2), math.ceil(w_pad / 2)),
                                (0, 0)), mode='constant')
 
-                flow_field = self.optical_flow_model.infer_flow_field(
-                    X[..., 0:3],
-                    X[..., 3:6])
+                flow_field = self.optical_flow_model.infer_from_image_stack(X[..., :6])
                 Xnew = MaskRefineSubnet.build_input_stack(
                     X[..., 3:6],
                     np.expand_dims(X[..., 6], axis=2),
@@ -217,7 +215,7 @@ class MaskRefineModule:
         COARSE MASK [h, w, 1]
         """
 
-        flow_field = self.optical_flow_model.infer_flow_field(input_stack[..., 0:3], input_stack[..., 3:6])
+        flow_field = self.optical_flow_model.infer_from_image_stack(input_stack[..., :6])
 
         subnet_input_stack = np.concatenate((input_stack[..., 3:6],), axis=2)
 

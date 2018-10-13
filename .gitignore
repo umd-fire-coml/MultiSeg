@@ -4,6 +4,10 @@ logs/
 results/
 temp/
 
+# specific tfoptflow checkpoint files
+pwcnet.ckpt*
+ckpt/
+
 # DS_Store for Macs
 **/.DS_Store
 

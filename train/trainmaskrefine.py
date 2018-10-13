@@ -3,12 +3,7 @@
 import argparse
 import imgaug.augmenters as iaa
 
-from keras.backend import tf
-
-gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.75)
-sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
-
-from opt_flow.pwc_net_wrapper import *
+from opt_flow.opt_flow import TensorFlowPWCNet
 from mask_refine.mask_refine import MaskRefineSubnet, MaskRefineModule
 from train.davis2017_dataset import *
 from train.datautils import splitd
@@ -27,7 +22,7 @@ if __name__ == '__main__':
                         )
     parser.add_argument('-o', '--optical-flow', dest='optical_flow_path', type=str,
                         nargs=1,
-                        default='./pwc_net.pth.tar')
+                        default='./opt_flow/models/pwcnet-lg-6-2-multisteps-chairsthingsmix/pwcnet.ckpt-595000')
     parser.add_argument('-v', '--validation-split', dest='val_split', type=float,
                         nargs=1, default=0.2)
     parser.add_argument('-p', '--print-debugs', dest='print_debugs', action='store_true')
@@ -58,7 +53,7 @@ if __name__ == '__main__':
         train, val = splitd(dataset, 1 - args.val_split, args.val_split)
         train_gen, val_gen = train.paired_generator(seq), val.paired_generator(seq)
 
-        pwc_net = PWCNetWrapper(model_pathname=args.optical_flow_path[0])
+        pwc_net = TensorFlowPWCNet(model_pathname=args.optical_flow_path[0])
         mr_subnet = MaskRefineSubnet()
         mr_module = MaskRefineModule(pwc_net, mr_subnet)
 
