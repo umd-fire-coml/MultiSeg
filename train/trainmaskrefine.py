@@ -71,8 +71,9 @@ if __name__ == '__main__':
         train_gen, val_gen = train.paired_generator(seq), val.paired_generator(seq)
 
         pwc_net = TensorFlowPWCNet(model_pathname=optical_flow_path)
-        mr_subnet = MaskRefineSubnet()
-        mr_module = MaskRefineModule(pwc_net, mr_subnet)
+        with pwc_net.graph.as_default():
+            mr_subnet = MaskRefineSubnet()
+            mr_module = MaskRefineModule(pwc_net, mr_subnet)
 
         if args.print_debugs:
             print('Starting MaskRefine training...')
