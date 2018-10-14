@@ -20,13 +20,13 @@ gpu_devices = ['/device:GPU:0']
 controller = '/device:GPU:0'
 
 # TODO: Set the path to the trained model (make sure you've downloaded it first from http://bit.ly/tfoptflow)
-ckpt_path = './models/pwcnet-lg-6-2-multisteps-chairsthingsmix/pwcnet.ckpt-595000'
+ckpt_path = './opt_flow/models/pwcnet-lg-6-2-multisteps-chairsthingsmix/pwcnet.ckpt-595000'
 
 # Build a list of image pairs to process
 img_pairs = []
 for pair in range(1, 4):
-    image_path1 = f'./samples/mpisintel_test_clean_ambush_1_frame_00{pair:02d}.png'
-    image_path2 = f'./samples/mpisintel_test_clean_ambush_1_frame_00{pair+1:02d}.png'
+    image_path1 = f'./opt_flow/samples/mpisintel_test_clean_ambush_1_frame_00{pair:02d}.png'
+    image_path2 = f'./opt_flow/samples/mpisintel_test_clean_ambush_1_frame_00{pair+1:02d}.png'
     image1, image2 = imread(image_path1), imread(image_path2)
     img_pairs.append((image1, image2))
 
