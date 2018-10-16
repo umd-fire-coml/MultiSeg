@@ -77,7 +77,7 @@ if __name__ == '__main__':
         train, val = splitd(dataset, 1 - val_split, val_split)
         train_gen, val_gen = train.paired_generator(seq), val.paired_generator(seq)
 
-        pwc_net = TensorFlowPWCNet(model_pathname=optical_flow_path, verbose=print_debugs)
+        pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=optical_flow_path, verbose=print_debugs)
         with pwc_net.graph.as_default():
             mr_subnet = MaskRefineSubnet()
             mr_module = MaskRefineModule(pwc_net, mr_subnet)

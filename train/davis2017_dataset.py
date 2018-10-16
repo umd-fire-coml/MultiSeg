@@ -47,6 +47,7 @@ class Davis2017Dataset(utils.Dataset):
      * paired_generator - TODO finish writing documentation
     """
     name = 'DAVIS2017'
+    size = (480, 854)
 
     def __init__(self, subset: str, quality: str, data_dir='./'):
         super(self.__class__, self).__init__(self)

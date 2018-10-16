@@ -44,8 +44,8 @@ class OpticalFlowNetwork(ABC):
 
 class TensorFlowPWCNet(OpticalFlowNetwork):
 
-    def __init__(self, image_size: tuple, model_pathname='./opt_flow/models/pwcnet-lg-6-2-multisteps-chairsthingsmix'
-                                                    '/pwcnet.ckpt-595000',
+    def __init__(self, image_size: tuple,
+                 model_pathname='./opt_flow/models/pwcnet-lg-6-2-multisteps-chairsthingsmix/pwcnet.ckpt-595000',
                  verbose=False):
         gpu_devices = ['/device:GPU:0']
         controller = '/device:GPU:0'
@@ -66,7 +66,7 @@ class TensorFlowPWCNet(OpticalFlowNetwork):
         nn_opts['flow_pred_lvl'] = 2
 
         # cropping of output images back to original size
-        nn_opts['adapt_info'] = (1, 436, 1024, 2)
+        nn_opts['adapt_info'] = (1, image_size[0], image_size[1], 2)
 
         self.nn = ModelPWCNet(mode='test', options=nn_opts)
 
