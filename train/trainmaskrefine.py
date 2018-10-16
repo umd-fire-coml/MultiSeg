@@ -39,9 +39,15 @@ if __name__ == '__main__':
     print(f'\tcommand\t{cmd}')
     print(f'\tdataset\t{dataset_path}')
     print(f'\toptical\t{optical_flow_path}')
-    print(f'\tval split\t{val_split}')
+    print(f'\tv split\t{val_split}')
     print(f'\tdebugs\t{print_debugs}')
     print()
+
+
+    def printd(string):
+        if print_debugs:
+            print(string)
+
 
     ############################################################################
 
@@ -75,10 +81,8 @@ if __name__ == '__main__':
             mr_subnet = MaskRefineSubnet()
             mr_module = MaskRefineModule(pwc_net, mr_subnet)
 
-        if args.print_debugs:
-            print('Starting MaskRefine training...')
+            printd('Starting MaskRefine training...')
 
-        hist = mr_module.train(train_gen, val_gen)
-        if args.print_debugs:
-            print(hist)
+            hist = mr_module.train(train_gen, val_gen)
+            printd(hist)
 

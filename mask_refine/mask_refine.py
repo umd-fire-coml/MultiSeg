@@ -41,7 +41,7 @@ class MaskRefineSubnet:
         if weights_path is not None:
             self.load_weights(weights_path)
 
-    def _build_model(self, optimizer=Adam(lr=1e-4), loss='binary_crossentropy'):
+    def _build_model(self, loss='binary_crossentropy'):
         """
         Builds the U-Net for the mask propagation network, 5 levels deep.
         :param optimizer: optimizer object to use to train
@@ -50,6 +50,9 @@ class MaskRefineSubnet:
         Adapted by Shivam, Derek, and Tim from https://github.com/ShawDa/unet-rgb/blob/master/unet.py. Adaptations
         include a binary focal loss, transposed convolutions, and varied activations.
         """
+
+        optimizer = Adam(lr=1e-4)
+
         inputs = Input((None, None, 6))
 
         # block 1 (down-1)
@@ -163,7 +166,7 @@ class MaskRefineSubnet:
 
     @staticmethod
     def build_input_stack(image, mask, flow_field):
-        return np.concatenate((image, mask, flow_field), axis=2)
+        return np.expand_dims(np.concatenate((image, mask, flow_field), axis=2), axis=0)
 
     def __call__(self, *args):
         return self._model(*args)
