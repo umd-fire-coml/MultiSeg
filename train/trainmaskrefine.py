@@ -16,11 +16,11 @@ if __name__ == '__main__':
                         )
     parser.add_argument('-d', '--dataset', dest='dataset_path', type=str,
                         nargs=1,
-                        default='G:\\Team Drives\\COML-Fall-2018\\T0-VidSeg\Data\\DAVIS',
+                        default=['G:\\Team Drives\\COML-Fall-2018\\T0-VidSeg\\Data\\DAVIS'],
                         )
     parser.add_argument('-o', '--optical-flow', dest='optical_flow_path', type=str,
                         nargs=1,
-                        default='./opt_flow/models/pwcnet-lg-6-2-multisteps-chairsthingsmix/pwcnet.ckpt-595000')
+                        default=['./opt_flow/models/pwcnet-lg-6-2-multisteps-chairsthingsmix/pwcnet.ckpt-595000'])
     parser.add_argument('-v', '--validation-split', dest='val_split', type=float,
                         nargs=1, default=0.2)
     parser.add_argument('-p', '--print-debugs', dest='print_debugs', action='store_true')
@@ -31,7 +31,7 @@ if __name__ == '__main__':
 
     cmd = args.cmd
     dataset_path = args.dataset_path[0]
-    optical_flow_path = args.optical_flow_path
+    optical_flow_path = args.optical_flow_path[0]
     val_split = args.val_split
     print_debugs = args.print_debugs
 
@@ -64,6 +64,7 @@ if __name__ == '__main__':
 
         for X, y in gen:
             import matplotlib.pyplot as plt
+            print(X.shape)
 
             plt.imshow(X[..., 6].astype(int))
             plt.show()
@@ -76,7 +77,7 @@ if __name__ == '__main__':
         train, val = splitd(dataset, 1 - val_split, val_split)
         train_gen, val_gen = train.paired_generator(seq), val.paired_generator(seq)
 
-        pwc_net = TensorFlowPWCNet(model_pathname=optical_flow_path)
+        pwc_net = TensorFlowPWCNet(model_pathname=optical_flow_path, verbose=print_debugs)
         with pwc_net.graph.as_default():
             mr_subnet = MaskRefineSubnet()
             mr_module = MaskRefineModule(pwc_net, mr_subnet)

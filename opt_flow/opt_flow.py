@@ -44,7 +44,8 @@ class OpticalFlowNetwork(ABC):
 
 class TensorFlowPWCNet(OpticalFlowNetwork):
 
-    def __init__(self, model_pathname='./opt_flow/models/pwcnet-lg-6-2-multisteps-chairsthingsmix/pwcnet.ckpt-595000',
+    def __init__(self, image_size: tuple, model_pathname='./opt_flow/models/pwcnet-lg-6-2-multisteps-chairsthingsmix'
+                                                    '/pwcnet.ckpt-595000',
                  verbose=False):
         gpu_devices = ['/device:GPU:0']
         controller = '/device:GPU:0'
