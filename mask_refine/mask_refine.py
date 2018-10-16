@@ -200,7 +200,7 @@ class MaskRefineModule:
                     np.expand_dims(X[..., 6], axis=2),
                     flow_field)
 
-                yield Xnew, y
+                yield Xnew, np.expand_dims(y, axis=0)
 
         return self.mask_refine_subnet.train(
             with_optical_flow(train_generator),
