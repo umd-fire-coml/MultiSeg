@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    cmd = args.cmdgi
+    cmd = args.cmd
     dataset_path = args.dataset_path[0]
     optical_flow_path = args.optical_flow_path[0]
     val_split = args.val_split
@@ -59,7 +59,7 @@ if __name__ == '__main__':
         iaa.AdditiveGaussianNoise(scale=(1, 5))
     ])
 
-    if args.cmd == 'augs':
+    if cmd == 'augs':
         gen = dataset.paired_generator(seq)
 
         for X, y in gen:
@@ -69,7 +69,7 @@ if __name__ == '__main__':
             plt.show()
             plt.imshow(y[..., 0])
             plt.show()
-    elif args.cmd == 'train':
+    elif cmd == 'train':
         from opt_flow.opt_flow import TensorFlowPWCNet
         from mask_refine.mask_refine import MaskRefineSubnet, MaskRefineModule
 
