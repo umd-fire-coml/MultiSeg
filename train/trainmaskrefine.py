@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    cmd = args.cmd
+    cmd = args.cmdgi
     dataset_path = args.dataset_path[0]
     optical_flow_path = args.optical_flow_path[0]
     val_split = args.val_split
@@ -64,7 +64,6 @@ if __name__ == '__main__':
 
         for X, y in gen:
             import matplotlib.pyplot as plt
-            print(X.shape)
 
             plt.imshow(X[..., 6].astype(int))
             plt.show()
