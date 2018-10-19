@@ -8,6 +8,19 @@ from train.datautils import splitd
 
 commands = ['train', 'augs', 'sizes']
 
+
+def load_data_peripherals(dpath):
+    dataset = get_trainval(dpath)
+
+    seq = iaa.Sequential([
+        iaa.ElasticTransformation(alpha=(200, 1000), sigma=(20, 100)),
+        iaa.GaussianBlur(sigma=(0.1, 7.5)),
+        iaa.AdditiveGaussianNoise(scale=(1, 5))
+    ])
+
+    return dataset, seq
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('cmd', choices=commands,
@@ -51,15 +64,9 @@ if __name__ == '__main__':
 
     ############################################################################
 
-    dataset = get_trainval(dataset_path)
-
-    seq = iaa.Sequential([
-        iaa.ElasticTransformation(alpha=(200, 1000), sigma=(20, 100)),
-        iaa.GaussianBlur(sigma=(0.1, 7.5)),
-        iaa.AdditiveGaussianNoise(scale=(1, 5))
-    ])
-
     if cmd == 'augs':
+        dataset, seq = load_data_peripherals(dataset_path)
+
         gen = dataset.paired_generator(seq)
 
         for X, y in gen:
@@ -70,6 +77,8 @@ if __name__ == '__main__':
             plt.imshow(y[..., 0])
             plt.show()
     elif cmd == 'train':
+        dataset, seq = load_data_peripherals(dataset_path)
+
         from opt_flow.opt_flow import TensorFlowPWCNet
         from mask_refine.mask_refine import MaskRefineSubnet, MaskRefineModule
 
