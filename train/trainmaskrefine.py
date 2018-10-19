@@ -6,7 +6,7 @@ import imgaug.augmenters as iaa
 from train.davis2017_dataset import *
 from train.datautils import splitd
 
-commands = ['train', 'augs']
+commands = ['train', 'augs', 'sizes']
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
