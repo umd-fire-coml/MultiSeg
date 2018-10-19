@@ -95,15 +95,27 @@ if __name__ == '__main__':
             hist = mr_module.train(train_gen, val_gen)
             printd(hist)
     elif cmd == 'sizes':
+        from opt_flow.opt_flow import TensorFlowPWCNet
         from mask_refine.mask_refine import MaskRefineSubnet, MaskRefineModule
         import numpy as np
 
-        mr_subnet = MaskRefineSubnet()
+        dataset, seq = load_data_peripherals(dataset_path)
+
+        pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=optical_flow_path, verbose=print_debugs)
+        with pwc_net.graph.as_default():
+            mr_subnet = MaskRefineSubnet()
 
         input_stack = np.empty((1, 512, 896, 6))
-
         output = mr_subnet.predict(input_stack)
 
-        printd(f'Input Shape: {input_stack.shape}')
-        printd(f'Output Shape: {output.shape}')
+        printd('MaskRefineSubnet:')
+        printd(f'Input Shape:\t{input_stack.shape}')
+        printd(f'Output Shape:\t{output.shape}')
+
+        input_stack = np.empty((1, 512, 896, 6))
+        output = pwc_net.infer_from_image_stack(input_stack)
+
+        printd('MaskRefineSubnet:')
+        printd(f'Input Shape:\t{input_stack.shape}')
+        printd(f'Output Shape:\t{output.shape}')
 
