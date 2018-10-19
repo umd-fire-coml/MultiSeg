@@ -17,7 +17,7 @@ def _conv2d(filters, kernel=3, activation='relu', kernel_initializer='he_normal'
 
 
 def _deconv2d(filters, activation=None, name=None):
-    return Conv2DTranspose(filters, (2, 2), strides=(2, 2),
+    return Conv2DTranspose(filters, (2, 2), # strides=(2, 2),
                            activation=activation, name=name)
 
 
@@ -29,6 +29,7 @@ def _concat(axis=3):
     return Concatenate(axis=axis)
 
 
+# TODO check tensor data types
 class MaskRefineSubnet:
     """
     Model for just the U-Net architecture within the Mask Refine Module. (Namely,
@@ -152,9 +153,9 @@ class MaskRefineSubnet:
         return history
 
     def predict(self, input_stack):
-        """Run inference for a set of inputs.
-        :param input_stack: current image, mask, optical flow of shape [h, w, 6]
-        :return: refined mask of shape [h, w, 1]
+        """Run inference for a set of inputs (batch size of 1).
+        :param input_stack: current image, mask, optical flow of shape [1, h, w, 6]
+        :return: refined mask of shape [h, w, 1] TODO confirm output tensor rank
 
         input stack (concatenated along the 3rd axis (axis=2)):
         IMAGE [h,w,3]
@@ -166,6 +167,14 @@ class MaskRefineSubnet:
 
     @staticmethod
     def build_input_stack(image, mask, flow_field):
+        """
+        Builds an input stack tensor (ready for use in model training) with batch
+        size of 1 from the image, mask, and flow field tensors.
+        :param image: color image tensor of shape [h, w, 3]
+        :param mask: mask tensor of shape [h, w, 1]
+        :param flow_field: optical flow tensor of shape [h, w, 2]
+        :return: input stack of shape [1, h, w, 6]
+        """
         return np.expand_dims(np.concatenate((image, mask, flow_field), axis=2), axis=0)
 
     def __call__(self, *args):
@@ -219,7 +228,7 @@ class MaskRefineModule:
         """
 
         flow_field = self.optical_flow_model.infer_from_image_stack(input_stack[..., :6])
-
+        # TODO not finished yet
         subnet_input_stack = np.concatenate((input_stack[..., 3:6],), axis=2)
 
         self.mask_refine_subnet.predict(subnet_input_stack)

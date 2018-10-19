@@ -85,4 +85,12 @@ if __name__ == '__main__':
 
             hist = mr_module.train(train_gen, val_gen)
             printd(hist)
+    elif cmd == 'sizes':
+        from mask_refine.mask_refine import MaskRefineSubnet, MaskRefineModule
+        import numpy as np
+
+        mr_subnet = MaskRefineSubnet()
+
+        input_stack = np.empty((1, 512, 896, 6))
+        output = mr_subnet.predict(input_stack)
 
