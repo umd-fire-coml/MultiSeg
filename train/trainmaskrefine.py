@@ -92,5 +92,9 @@ if __name__ == '__main__':
         mr_subnet = MaskRefineSubnet()
 
         input_stack = np.empty((1, 512, 896, 6))
+
         output = mr_subnet.predict(input_stack)
+
+        printd(f'Input Shape: {input_stack.shape}')
+        printd(f'Output Shape: {output.shape}')
 

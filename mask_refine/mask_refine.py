@@ -17,7 +17,7 @@ def _conv2d(filters, kernel=3, activation='relu', kernel_initializer='he_normal'
 
 
 def _deconv2d(filters, activation=None, name=None):
-    return Conv2DTranspose(filters, (2, 2), # strides=(2, 2),
+    return Conv2DTranspose(filters, (2, 2), strides=(2, 2),
                            activation=activation, name=name)
 
 
