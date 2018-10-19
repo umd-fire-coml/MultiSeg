@@ -105,17 +105,17 @@ if __name__ == '__main__':
         with pwc_net.graph.as_default():
             mr_subnet = MaskRefineSubnet()
 
-        input_stack = np.empty((1, 512, 896, 6))
-        output = mr_subnet.predict(input_stack)
+            input_stack = np.empty((1, 512, 896, 6))
+            output = mr_subnet.predict(input_stack)
 
-        printd('MaskRefineSubnet:')
-        printd(f'Input Shape:\t{input_stack.shape}')
-        printd(f'Output Shape:\t{output.shape}')
+            printd('MaskRefineSubnet:')
+            printd(f'Input Shape:\t{input_stack.shape}')
+            printd(f'Output Shape:\t{output.shape}')
 
-        input_stack = np.empty((1, 512, 896, 6))
-        output = pwc_net.infer_from_image_stack(input_stack)
+            input_stack = np.empty((1, 512, 896, 6))
+            output = pwc_net.infer_from_image_stack(input_stack)
 
-        printd('MaskRefineSubnet:')
-        printd(f'Input Shape:\t{input_stack.shape}')
-        printd(f'Output Shape:\t{output.shape}')
+            printd('MaskRefineSubnet:')
+            printd(f'Input Shape:\t{input_stack.shape}')
+            printd(f'Output Shape:\t{output.shape}')
 
