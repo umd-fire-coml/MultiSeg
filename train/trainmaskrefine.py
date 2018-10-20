@@ -149,7 +149,7 @@ if __name__ == '__main__':
             printd(f'Input Shape:\t{input_stack.shape}')
             printd(f'Output Shape:\t{output.shape}')
 
-            input_stack = np.empty((1, 512, 896, 6))
+            input_stack = np.empty((512, 896, 6))
             output = mr_module.refine_mask(input_stack)
 
             printd('Entire Module:')
