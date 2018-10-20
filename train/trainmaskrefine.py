@@ -40,10 +40,11 @@ def load_data_peripherals(dpath):
 
 
 def warn_if_debugging_without_prints(command):
-    warn(f'"{command}" is a debugging command, but debugs are not printed. (Use -p or -print-debugs to output.)')
-    response = input('Are you sure you want to continue? [y/n] ')
-    if 'y' not in response.strip().lower():
-        sys.exit()
+    if not print_debugs:
+        warn(f'"{command}" is a debugging command, but debugs are not printed. (Use -p or -print-debugs to output.)')
+        response = input('Are you sure you want to continue? [y/n] ')
+        if 'y' not in response.strip().lower():
+            sys.exit()
 
 
 if __name__ == '__main__':
