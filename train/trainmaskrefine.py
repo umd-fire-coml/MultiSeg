@@ -2,6 +2,8 @@
 
 import argparse
 import imgaug.augmenters as iaa
+import sys
+from warnings import warn
 
 from train.davis2017_dataset import *
 from train.datautils import splitd
@@ -21,6 +23,13 @@ def load_data_peripherals(dpath):
     return dataset, seq
 
 
+def warn_if_debugging_without_prints(command):
+    warn(f'"{command}" is a debugging command, but debugs are not printed. (Use -p or -print-debugs to output.)')
+    response = input('Are you sure you want to continue? [y/n] ')
+    if 'y' not in response.strip().lower():
+        sys.exit()
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('cmd', choices=commands,
@@ -35,7 +44,7 @@ if __name__ == '__main__':
                         nargs=1,
                         default=['./opt_flow/models/pwcnet-lg-6-2-multisteps-chairsthingsmix/pwcnet.ckpt-595000'])
     parser.add_argument('-v', '--validation-split', dest='val_split', type=float,
-                        nargs=1, default=0.2)
+                        nargs=1, default=0.15)
     parser.add_argument('-p', '--print-debugs', dest='print_debugs', action='store_true')
 
     ############################################################################
@@ -95,6 +104,8 @@ if __name__ == '__main__':
             hist = mr_module.train(train_gen, val_gen)
             printd(hist)
     elif cmd == 'sizes':
+        warn_if_debugging_without_prints("sizes")
+
         from opt_flow.opt_flow import TensorFlowPWCNet
         from mask_refine.mask_refine import MaskRefineSubnet, MaskRefineModule
         import numpy as np
@@ -115,7 +126,7 @@ if __name__ == '__main__':
             input_stack = np.empty((512, 896, 6))
             output = pwc_net.infer_from_image_stack(input_stack)
 
-            printd('MaskRefineSubnet:')
+            printd('PWCNet:')
             printd(f'Input Shape:\t{input_stack.shape}')
             printd(f'Output Shape:\t{output.shape}')
 
