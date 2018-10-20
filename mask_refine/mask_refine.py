@@ -228,12 +228,12 @@ class MaskRefineModule:
         """
 
         flow_field = self.optical_flow_model.infer_from_image_stack(input_stack[..., :6])
-        # TODO not finished yet
-        subnet_input_stack = np.concatenate((input_stack[..., 3:6],), axis=2)
 
-        self.mask_refine_subnet.predict(subnet_input_stack)
+        subnet_input_stack = np.concatenate((input_stack[..., 3:6],
+                                             np.expand_dims(input_stack[..., 6], axis=2),
+                                             flow_field), axis=2)
 
-        pass
+        return self.mask_refine_subnet.predict(subnet_input_stack)
 
     @staticmethod
     def build_input_stack(prev_image, curr_image, coarse_mask):
