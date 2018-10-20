@@ -1,5 +1,16 @@
 #!usr/bin/env python
 
+################################################################################
+#                   Mask Refine Training Script & Utilities                    #
+#                                                                              #
+# Commands Available:                                                          #
+#   * train - run the training script for the mask refine module               #
+#   * augs - display the images of a dataset before & after augmentation       #
+#   * sizes - run each component of the module separately on fixed size inputs #
+#             to verify input and output sizes                                 #
+#                                                                              #
+################################################################################
+
 import argparse
 import imgaug.augmenters as iaa
 import sys
@@ -8,7 +19,12 @@ from warnings import warn
 from train.davis2017_dataset import *
 from train.datautils import splitd
 
-commands = ['train', 'augs', 'sizes']
+# mapping from command description (key) to actual command line arg (value)
+commands = {'train': 'train',
+            'augs': 'augs',
+            'sizes': 'sizes'
+            }
+commands_list = list(commands.values())
 
 
 def load_data_peripherals(dpath):
@@ -32,8 +48,8 @@ def warn_if_debugging_without_prints(command):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('cmd', choices=commands,
-                        default=commands[0],
+    parser.add_argument('cmd', choices=commands_list,
+                        default=commands['train'],
                         help='Display plots of the augmented masks used for training',
                         )
     parser.add_argument('-d', '--dataset', dest='dataset_path', type=str,
@@ -73,7 +89,7 @@ if __name__ == '__main__':
 
     ############################################################################
 
-    if cmd == 'augs':
+    if cmd == commands['augs']:
         dataset, seq = load_data_peripherals(dataset_path)
 
         gen = dataset.paired_generator(seq)
@@ -85,7 +101,7 @@ if __name__ == '__main__':
             plt.show()
             plt.imshow(y[..., 0])
             plt.show()
-    elif cmd == 'train':
+    elif cmd == commands['train']:
         dataset, seq = load_data_peripherals(dataset_path)
 
         from opt_flow.opt_flow import TensorFlowPWCNet
@@ -103,7 +119,7 @@ if __name__ == '__main__':
 
             hist = mr_module.train(train_gen, val_gen)
             printd(hist)
-    elif cmd == 'sizes':
+    elif cmd == commands['sizes']:
         warn_if_debugging_without_prints("sizes")
 
         from opt_flow.opt_flow import TensorFlowPWCNet
@@ -115,10 +131,12 @@ if __name__ == '__main__':
         pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=optical_flow_path, verbose=print_debugs)
         with pwc_net.graph.as_default():
             mr_subnet = MaskRefineSubnet()
+            mr_module = MaskRefineModule(pwc_net, mr_subnet)
 
             input_stack = np.empty((1, 512, 896, 6))
             output = mr_subnet.predict(input_stack)
 
+            printd('INPUT/OUTPUT INFERENCE TESTS')
             printd('MaskRefineSubnet:')
             printd(f'Input Shape:\t{input_stack.shape}')
             printd(f'Output Shape:\t{output.shape}')
@@ -127,6 +145,13 @@ if __name__ == '__main__':
             output = pwc_net.infer_from_image_stack(input_stack)
 
             printd('PWCNet:')
+            printd(f'Input Shape:\t{input_stack.shape}')
+            printd(f'Output Shape:\t{output.shape}')
+
+            input_stack = np.empty((1, 512, 896, 6))
+            # TODO when module refine_mask method is ready, run inference
+
+            printd('Entire Module:')
             printd(f'Input Shape:\t{input_stack.shape}')
             printd(f'Output Shape:\t{output.shape}')
 
