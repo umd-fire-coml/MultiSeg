@@ -102,10 +102,10 @@ if __name__ == '__main__':
             plt.imshow(y[..., 0])
             plt.show()
     elif cmd == commands['train']:
-        dataset, seq = load_data_peripherals(dataset_path)
-
         from opt_flow.opt_flow import TensorFlowPWCNet
         from mask_refine.mask_refine import MaskRefineSubnet, MaskRefineModule
+
+        dataset, seq = load_data_peripherals(dataset_path)
 
         train, val = splitd(dataset, 1 - val_split, val_split)
         train_gen, val_gen = train.paired_generator(seq), val.paired_generator(seq)
