@@ -31,9 +31,8 @@ def load_data_peripherals(dpath):
     dataset = get_trainval(dpath)
 
     seq = iaa.Sequential([
-        iaa.ElasticTransformation(alpha=(200, 1000), sigma=(20, 100)),
-        iaa.GaussianBlur(sigma=(0.5, 10)),
-        iaa.GaussianBlur(sigma=(0.5, 10)),
+        iaa.ElasticTransformation(alpha=(2000, 10000), sigma=(20, 100)),
+        iaa.GaussianBlur(sigma=(0, 20)),
         iaa.AdditiveGaussianNoise(scale=(1, 5))
     ])
 
