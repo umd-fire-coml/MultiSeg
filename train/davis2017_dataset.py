@@ -180,8 +180,6 @@ class Davis2017Dataset(utils.Dataset):
         y: ground truth mask
         """
 
-        augmentation = augmentation.to_deterministic()
-
         ordered_ids = deepcopy(self.image_ids[1:])
         shuffle(ordered_ids)
         sentinel = -1
@@ -212,8 +210,10 @@ class Davis2017Dataset(utils.Dataset):
             # generate a pair for each mask instance
             for i in range(gt_masks.shape[-1]):
                 if mask_as_input:
+                    aug_for_this = augmentation.to_deterministic()
+
                     aug_mask = np.expand_dims(aug_masks[..., i], axis=2)
-                    aug_mask = augmentation.augment_image(aug_mask)
+                    aug_mask = aug_for_this.augment_image(aug_mask)
 
                     X = np.concatenate((prev_image, curr_image, aug_mask), axis=2)
                 else:

@@ -32,7 +32,8 @@ def load_data_peripherals(dpath):
 
     seq = iaa.Sequential([
         iaa.ElasticTransformation(alpha=(200, 1000), sigma=(20, 100)),
-        iaa.GaussianBlur(sigma=(0.1, 7.5)),
+        iaa.GaussianBlur(sigma=(0.5, 10)),
+        iaa.GaussianBlur(sigma=(0.5, 10)),
         iaa.AdditiveGaussianNoise(scale=(1, 5))
     ])
 
