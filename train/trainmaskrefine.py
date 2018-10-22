@@ -98,6 +98,8 @@ if __name__ == '__main__':
         for X, y in gen:
             import matplotlib.pyplot as plt
 
+            printd(f'X.shape: {X.shape}, y.shape: {y.shape}')
+
             plt.imshow(X[..., 6].astype(int))
             plt.show()
             plt.imshow(y[..., 0])
