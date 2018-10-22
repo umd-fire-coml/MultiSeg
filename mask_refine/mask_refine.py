@@ -11,6 +11,7 @@ from opt_flow.opt_flow import OpticalFlowNetwork
 __all__ = ['MaskRefineSubnet', 'MaskRefineModule']
 
 
+# functional layers
 def _conv2d(filters, kernel=3, activation='relu', kernel_initializer='he_normal', name=None):
     return Conv2D(filters, kernel, activation=activation, padding='same',
                   kernel_initializer=kernel_initializer, name=name)
@@ -27,6 +28,11 @@ def _maxpool2d(pool_size=(2, 2)):
 
 def _concat(axis=3):
     return Concatenate(axis=axis)
+
+
+# utils
+def rank(tensor):
+    return len(tensor.shape)
 
 
 # TODO check tensor data types
@@ -155,13 +161,15 @@ class MaskRefineSubnet:
     def predict(self, input_stack):
         """Run inference for a set of inputs (batch size of 1).
         :param input_stack: current image, mask, optical flow of shape [1, h, w, 6]
-        :return: refined mask of shape [h, w, 1] TODO confirm output tensor rank
+        :return: refined mask of shape [1, h, w, 1]
 
         input stack (concatenated along the 3rd axis (axis=2)):
         IMAGE [h,w,3]
         MASK  [h,w,1]
         FLOW  [h,w,2]
         """
+
+        assert rank(input_stack) == 4
 
         return self._model.predict(input_stack, batch_size=1)
 
@@ -175,6 +183,9 @@ class MaskRefineSubnet:
         :param flow_field: optical flow tensor of shape [h, w, 2]
         :return: input stack of shape [1, h, w, 6]
         """
+
+        assert rank(image) == 3 and rank(mask) == 3 and rank(flow_field) == 3
+
         return np.expand_dims(np.concatenate((image, mask, flow_field), axis=2), axis=0)
 
     def __call__(self, *args):
@@ -196,7 +207,9 @@ class MaskRefineModule:
             while True:
                 X, y = next(gen)
 
-                # pads images with zeros to the next largest multiple of 64
+                assert rank(X) == 3 and rank(y) == 3
+
+                # pads images with zeros to the next largest multiple of 64 (center fix)
                 h_, w_ = math.ceil(X.shape[0] / 64) * 64, math.ceil(X.shape[1] / 64) * 64
                 h_pad, w_pad = h_ - X.shape[0], w_ - X.shape[1]
                 X = np.pad(X, ((math.floor(h_pad / 2), math.ceil(h_pad / 2)),
@@ -209,7 +222,11 @@ class MaskRefineModule:
                     np.expand_dims(X[..., 6], axis=2),
                     flow_field)
 
-                yield Xnew, np.expand_dims(y, axis=0)
+                ynew = np.expand_dims(y, axis=0)
+
+                assert rank(Xnew) == 4 and rank(ynew) == 4
+
+                yield Xnew, ynew
 
         return self.mask_refine_subnet.train(
             with_optical_flow(train_generator),
@@ -227,6 +244,8 @@ class MaskRefineModule:
         COARSE MASK [h, w, 1]
         """
 
+        assert rank(input_stack) == 3
+
         flow_field = self.optical_flow_model.infer_from_image_stack(input_stack[..., :6])
 
         subnet_input_stack = np.concatenate((input_stack[..., 3:6],
@@ -237,4 +256,6 @@ class MaskRefineModule:
 
     @staticmethod
     def build_input_stack(prev_image, curr_image, coarse_mask):
+        assert rank(prev_image) == 3 and rank(curr_image) == 3 and rank(coarse_mask) == 3
+
         return np.concatenate((prev_image, curr_image, coarse_mask), axis=2)
