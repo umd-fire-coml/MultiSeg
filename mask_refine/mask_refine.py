@@ -203,18 +203,23 @@ class MaskRefineModule:
         self.mask_refine_subnet = mask_refine_subnet
 
     def train(self, train_generator, val_generator):
+        def pad64(tensor):
+            # pads images with zeros to the next largest multiple of 64 (center fix)
+            h_, w_ = math.ceil(tensor.shape[0] / 64) * 64, math.ceil(tensor.shape[1] / 64) * 64
+            h_pad, w_pad = h_ - tensor.shape[0], w_ - tensor.shape[1]
+            return np.pad(tensor, ((math.floor(h_pad / 2), math.ceil(h_pad / 2)),
+                                   (math.floor(w_pad / 2), math.ceil(w_pad / 2)),
+                                   (0, 0)), mode='constant')
+
         def with_optical_flow(gen):
             while True:
                 X, y = next(gen)
 
                 assert rank(X) == 3 and rank(y) == 3
 
-                # pads images with zeros to the next largest multiple of 64 (center fix)
-                h_, w_ = math.ceil(X.shape[0] / 64) * 64, math.ceil(X.shape[1] / 64) * 64
-                h_pad, w_pad = h_ - X.shape[0], w_ - X.shape[1]
-                X = np.pad(X, ((math.floor(h_pad / 2), math.ceil(h_pad / 2)),
-                               (math.floor(w_pad / 2), math.ceil(w_pad / 2)),
-                               (0, 0)), mode='constant')
+                # pad image and mask to multiples of 64
+                X = pad64(X)
+                y = pad64(y)
 
                 flow_field = self.optical_flow_model.infer_from_image_stack(X[..., :6])
                 Xnew = MaskRefineSubnet.build_input_stack(
