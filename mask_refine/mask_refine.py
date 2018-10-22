@@ -247,10 +247,11 @@ class MaskRefineModule:
         assert rank(input_stack) == 3
 
         flow_field = self.optical_flow_model.infer_from_image_stack(input_stack[..., :6])
+        subnet_input_stack = MaskRefineSubnet.build_input_stack(input_stack[..., 3:6],
+                                                                np.expand_dims(input_stack[..., 6], axis=2),
+                                                                flow_field)
 
-        subnet_input_stack = np.concatenate((input_stack[..., 3:6],
-                                             np.expand_dims(input_stack[..., 6], axis=2),
-                                             flow_field), axis=2)
+        assert rank(subnet_input_stack) == 4
 
         return self.mask_refine_subnet.predict(subnet_input_stack)
 
