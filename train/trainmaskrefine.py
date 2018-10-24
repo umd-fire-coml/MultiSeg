@@ -36,6 +36,7 @@ def load_data_peripherals(dpath):
         iaa.GaussianBlur(sigma=(0, 20)),
         iaa.Sometimes(0.25, iaa.Multiply((0.5, 0.75))),
         iaa.MultiplyElementwise((0.9, 1.1)),
+        iaa.Sometimes(0.1, iaa.GaussianBlur(sigma=(5, 100))),
         iaa.AdditiveGaussianNoise(scale=(1, 5))
     ])
 

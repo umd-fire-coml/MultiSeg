@@ -1,4 +1,5 @@
 from datetime import datetime
+import keras.backend as tf
 from keras.callbacks import TensorBoard, CSVLogger, ModelCheckpoint
 from keras.layers import Input, Conv2D, Dropout, MaxPooling2D, Conv2DTranspose, Concatenate
 from keras.models import Model
@@ -30,9 +31,15 @@ def _concat(axis=3):
     return Concatenate(axis=axis)
 
 
-# utils
+# utils & other
 def rank(tensor):
     return len(tensor.shape)
+
+
+def edge_focused_loss(y_true, y_pred):
+    tf
+    # TODO calculate an edge-focused loss
+    pass
 
 
 # TODO check tensor data types
