@@ -31,8 +31,8 @@ def _concat(axis=3, name=None):
     return Concatenate(axis=axis, name=name)
 
 
-def _batchnorm(name=None):
-    return BatchNormalization(name=name)
+def _batchnorm():
+    return BatchNormalization()
 
 
 # utils & other
@@ -41,7 +41,6 @@ def rank(tensor):
 
 
 def edge_focused_loss(y_true, y_pred):
-    tf
     # TODO calculate an edge-focused loss
     pass
 
