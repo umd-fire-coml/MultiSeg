@@ -107,10 +107,9 @@ class MaskRefineSubnet:
         norm5 = _batchnorm()(conv5)
         conv5 = _conv2d(1024)(norm5)
         norm5 = _batchnorm()(conv5)
-        drop5 = Dropout(0.5)(norm5)
 
         # block 6 (up-4)
-        up6 = _deconv2d(1024)(drop5)
+        up6 = _deconv2d(1024)(norm5)
         norm6 = _batchnorm()(up6)
 
         merge6 = _concat()([drop4, norm6])
