@@ -123,9 +123,9 @@ class MaskRefineSubnet:
 
         merge7 = _concat()([conv3, norm7])
         conv7 = _conv2d(256)(merge7)
-        norm7 = _batchnorm(conv7)
+        norm7 = _batchnorm()(conv7)
         conv7 = _conv2d(256)(norm7)
-        norm7 = _batchnorm(conv7)
+        norm7 = _batchnorm()(conv7)
 
         # block 8 (up-2)
         up8 = _deconv2d(256)(norm7)
