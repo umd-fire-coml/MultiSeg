@@ -1,7 +1,7 @@
 from datetime import datetime
 import keras.backend as tf
 from keras.callbacks import TensorBoard, CSVLogger, ModelCheckpoint
-from keras.layers import Input, Conv2D, Dropout, MaxPooling2D, Conv2DTranspose, Concatenate
+from keras.layers import Input, Conv2D, Dropout, MaxPooling2D, Conv2DTranspose, Concatenate, BatchNormalization
 from keras.models import Model
 from keras.optimizers import Adam
 import math
@@ -23,12 +23,16 @@ def _deconv2d(filters, activation=None, name=None):
                            activation=activation, name=name)
 
 
-def _maxpool2d(pool_size=(2, 2)):
-    return MaxPooling2D(pool_size=pool_size)
+def _maxpool2d(pool_size=(2, 2), name=None):
+    return MaxPooling2D(pool_size=pool_size, name=name)
 
 
-def _concat(axis=3):
-    return Concatenate(axis=axis)
+def _concat(axis=3, name=None):
+    return Concatenate(axis=axis, name=name)
+
+
+def _batchnorm(name=None):
+    return BatchNormalization(name=name)
 
 
 # utils & other
@@ -71,58 +75,82 @@ class MaskRefineSubnet:
 
         # block 1 (down-1)
         conv1 = _conv2d(64)(inputs)
-        conv1 = _conv2d(64)(conv1)
-        pool1 = _maxpool2d()(conv1)
+        norm1 = _batchnorm()(conv1)
+        conv1 = _conv2d(64)(norm1)
+        norm1 = _batchnorm()(conv1)
+        pool1 = _maxpool2d()(norm1)
 
         # block 2 (down-2)
         conv2 = _conv2d(128)(pool1)
-        conv2 = _conv2d(128)(conv2)
-        pool2 = _maxpool2d()(conv2)
+        norm2 = _batchnorm()(conv2)
+        conv2 = _conv2d(128)(norm2)
+        norm2 = _batchnorm()(conv2)
+        pool2 = _maxpool2d()(norm2)
 
         # block 3 (down-3)
         conv3 = _conv2d(256)(pool2)
-        conv3 = _conv2d(256)(conv3)
-        pool3 = _maxpool2d()(conv3)
+        norm3 = _batchnorm()(conv3)
+        conv3 = _conv2d(256)(norm3)
+        norm3 = _batchnorm()(conv3)
+        pool3 = _maxpool2d()(norm3)
 
         # block 4 (down-4)
         conv4 = _conv2d(512)(pool3)
-        conv4 = _conv2d(512)(conv4)
-        drop4 = Dropout(0.5)(conv4)
+        norm4 = _batchnorm()(conv4)
+        conv4 = _conv2d(512)(norm4)
+        norm4 = _batchnorm()(conv4)
+        drop4 = Dropout(0.5)(norm4)
         pool4 = _maxpool2d()(drop4)
 
         # block 5 (5)
         conv5 = _conv2d(1024)(pool4)
-        conv5 = _conv2d(1024)(conv5)
-        drop5 = Dropout(0.5)(conv5)
+        norm5 = _batchnorm()(conv5)
+        conv5 = _conv2d(1024)(norm5)
+        norm5 = _batchnorm()(conv5)
+        drop5 = Dropout(0.5)(norm5)
 
         # block 6 (up-4)
         up6 = _deconv2d(1024)(drop5)
+        norm6 = _batchnorm()(up6)
 
-        merge6 = _concat()([drop4, up6])
+        merge6 = _concat()([drop4, norm6])
         conv6 = _conv2d(512)(merge6)
-        conv6 = _conv2d(512)(conv6)
+        norm6 = _batchnorm()(conv6)
+        conv6 = _conv2d(512)(norm6)
+        norm6 = _batchnorm()(conv6)
 
         # block 7 (up-3)
-        up7 = _deconv2d(512)(conv6)
-        merge7 = _concat()([conv3, up7])
+        up7 = _deconv2d(512)(norm6)
+        norm7 = _batchnorm()(up7)
+
+        merge7 = _concat()([conv3, norm7])
         conv7 = _conv2d(256)(merge7)
-        conv7 = _conv2d(256)(conv7)
+        norm7 = _batchnorm(conv7)
+        conv7 = _conv2d(256)(norm7)
+        norm7 = _batchnorm(conv7)
 
         # block 8 (up-2)
-        up8 = _deconv2d(256)(conv7)
-        merge8 = _concat()([conv2, up8])
+        up8 = _deconv2d(256)(norm7)
+        norm8 = _batchnorm()(up8)
+
+        merge8 = _concat()([conv2, norm8])
         conv8 = _conv2d(128)(merge8)
-        conv8 = _conv2d(128)(conv8)
+        norm8 = _batchnorm()(conv8)
+        conv8 = _conv2d(128)(norm8)
+        norm8 = _batchnorm()(conv8)
 
         # block 9 (up-1)
-        up9 = _deconv2d(128)(conv8)
-        merge9 = _concat()([conv1, up9])
+        up9 = _deconv2d(128)(norm8)
+        norm9 = _batchnorm()(up9)
+
+        merge9 = _concat()([conv1, norm9])
         conv9 = _conv2d(64)(merge9)
-        conv9 = _conv2d(64)(conv9)
-        conv9 = _conv2d(2)(conv9)
+        norm9 = _batchnorm()(conv9)
+        conv9 = _conv2d(64)(norm9)
+        norm9 = _batchnorm()(conv9)
 
         # block 10 (final outputs)
-        conv10 = _conv2d(1, kernel=1, activation='sigmoid')(conv9)
+        conv10 = _conv2d(1, kernel=1, activation='sigmoid')(norm9)
 
         model = Model(inputs=[inputs], outputs=[conv10])
 
