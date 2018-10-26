@@ -64,6 +64,9 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--optical-flow', dest='optical_flow_path', type=str,
                         nargs=1,
                         default=['./opt_flow/models/pwcnet-lg-6-2-multisteps-chairsthingsmix/pwcnet.ckpt-595000'])
+    parser.add_argument('-m', '--mask-refine', dest='mask_refine_path', type=str,
+                        nargs=1,
+                        default=[None])
     parser.add_argument('-v', '--validation-split', dest='val_split', type=float,
                         nargs=1, default=0.15)
     parser.add_argument('-p', '--print-debugs', dest='print_debugs', action='store_true')
@@ -75,6 +78,7 @@ if __name__ == '__main__':
     cmd = args.cmd
     dataset_path = args.dataset_path[0]
     optical_flow_path = args.optical_flow_path[0]
+    mask_refine_path = args.mask_refine_path[0]
     val_split = args.val_split
     print_debugs = args.print_debugs
 
@@ -82,6 +86,7 @@ if __name__ == '__main__':
     print(f'\tcommand\t{cmd}')
     print(f'\tdataset\t{dataset_path}')
     print(f'\toptical\t{optical_flow_path}')
+    print(f'\tmrefine\t{mask_refine_path}')
     print(f'\tv split\t{val_split}')
     print(f'\tdebugs\t{print_debugs}')
     print()
@@ -121,6 +126,9 @@ if __name__ == '__main__':
         with pwc_net.graph.as_default():
             mr_subnet = MaskRefineSubnet()
             mr_module = MaskRefineModule(pwc_net, mr_subnet)
+
+            if mask_refine_path is not None:
+                mr_subnet.load_weights(mask_refine_path)
 
             printd('Starting MaskRefine training...')
 
