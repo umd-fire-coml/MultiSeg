@@ -60,6 +60,9 @@ class Davis2017Dataset(utils.Dataset):
         self.quality = quality
         self.data_dir = data_dir
 
+    def __len__(self):
+        return len(self.image_ids)
+
     @property
     def all_masked(self) -> bool:
         """Whether all images in this dataset have a mask. This method is O(n),
@@ -134,6 +137,9 @@ class Davis2017Dataset(utils.Dataset):
         """Returns whether the image/mask pair with image_id actually has a mask."""
 
         return 'mask_path' in self.image_info[image_id]
+
+    def __getitem__(self, item: int):
+        return self.load_float_mask(item)
 
     def load_mask(self, image_id: int):
         info = self.image_info[image_id]

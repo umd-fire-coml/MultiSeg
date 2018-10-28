@@ -67,7 +67,7 @@ def splitd(dataset: Dataset, *splits: float, shuffle=True) -> List[Dataset]:
     return list(reversed(split_datasets))
 
 
-def merged(*datasets : Dataset) -> Dataset:
+def merged(*datasets: Dataset) -> Dataset:
     """
     Utility function that merges a set of datasets containing
     :param datasets: datasets to merge together
