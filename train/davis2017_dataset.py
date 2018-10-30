@@ -187,28 +187,42 @@ class Davis2017Dataset(utils.Dataset):
         """
 
         ordered_ids = deepcopy(self.image_ids[1:])
-        shuffle(ordered_ids)
-        sentinel = -1
 
-        id_queue = deque(ordered_ids)
-        id_queue.appendleft(sentinel)
+        id_pairs = []
+
+        i = 0
+        while i < len(ordered_ids) - 1:
+            # at the change point between videos
+            if self.image_info[i]['video'] != self.image_info[i + 1]['video']:
+                continue
+
+            j = i + 1
+            while j < len(ordered_ids) - 1 and self.image_info[i]['video'] == self.image_info[j]['video']:
+                id_pairs.append((i, j))
+
+                j += 1
+
+            i += 1
+
+        sentinel = (-1, -1)
+
+        shuffle(id_pairs)
+        id_pair_queue = deque(id_pairs)
+        id_pair_queue.appendleft(sentinel)
 
         while True:
             # process the next image
-            curr_id = id_queue.pop()
+            prev_id, curr_id = id_pair_queue.pop()
 
             # reshuffle if reached the sentinel
-            if curr_id == sentinel:
-                shuffle(id_queue)
-                id_queue.appendleft(sentinel)
-                continue
-
-            # skip this pair if not in the same video
-            if self.image_info[curr_id]['video'] != self.image_info[curr_id - 1]['video']:
+            if prev_id == curr_id:
+                shuffle(id_pairs)
+                id_pair_queue = deque(id_pairs)
+                id_pair_queue.appendleft(sentinel)
                 continue
 
             # load originals
-            prev_image = self.load_image(curr_id - 1)
+            prev_image = self.load_image(prev_id)
             curr_image = self.load_image(curr_id)
             gt_masks, _ = self.load_float_mask(curr_id)
             aug_masks, _ = self.load_int_mask(curr_id)
@@ -230,7 +244,7 @@ class Davis2017Dataset(utils.Dataset):
                 yield X, y
 
             # add the image to the back of the queue
-            id_queue.appendleft(curr_id)
+            id_pair_queue.appendleft(curr_id)
 
     def build_absolute_path_to(self, selection: str, video_and_filename: str) -> str:
         """
