@@ -172,7 +172,7 @@ class MaskRefineSubnet:
 
         self._model.load_weights(weights_path)
 
-    def train(self, train_generator, val_generator, epochs=30, steps_per_epoch=500, val_steps_per_epoch=100):
+    def train(self, train_generator, val_generator, epochs=30, steps_per_epoch=500, val_steps_per_epoch=1000):
         history_file = "logs/mask_refine_history_" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
 
         callbacks = [
@@ -244,7 +244,7 @@ class MaskRefineModule:
         self.optical_flow_model = optical_flow_model
         self.mask_refine_subnet = mask_refine_subnet
 
-    def train(self, train_generator, val_generator):
+    def train(self, train_generator, val_generator, **kwargs):
         def with_optical_flow(gen):
             while True:
                 X, y = next(gen)
@@ -269,7 +269,9 @@ class MaskRefineModule:
 
         return self.mask_refine_subnet.train(
             with_optical_flow(train_generator),
-            with_optical_flow(val_generator))
+            with_optical_flow(val_generator),
+            **kwargs
+        )
 
     def refine_mask(self, input_stack):
         """

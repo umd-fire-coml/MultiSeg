@@ -70,7 +70,9 @@ parser.add_argument('-m', '--mask-refine', dest='mask_refine_path', type=str,
                     nargs=1,
                     default=[None])
 parser.add_argument('-v', '--validation-split', dest='val_split', type=float,
-                    nargs=1, default=0.15)
+                    nargs=1, default=[0.15])
+parser.add_argument('-e', '-epochssteps', dest='epochssteps', type=int,
+                    nargs=2, default=[200, 1000])
 parser.add_argument('-p', '--print-debugs', dest='print_debugs', action='store_true')
 
 ############################################################################
@@ -81,7 +83,9 @@ cmd = args.cmd
 dataset_path = args.dataset_path[0]
 optical_flow_path = args.optical_flow_path[0]
 mask_refine_path = args.mask_refine_path[0]
-val_split = args.val_split
+val_split = args.val_split[0]
+epochs = args.epochssteps[0]
+steps = args.epochssteps[1]
 print_debugs = args.print_debugs
 
 print('Arguments given to trainmaskrefine command: ')
@@ -90,6 +94,8 @@ print(f'\tdataset\t{dataset_path}')
 print(f'\toptical\t{optical_flow_path}')
 print(f'\tmrefine\t{mask_refine_path}')
 print(f'\tv split\t{val_split}')
+print(f'\tepochs\t{epochs}')
+print(f'\tsteps\t{steps}')
 print(f'\tdebugs\t{print_debugs}')
 print()
 
@@ -134,7 +140,7 @@ elif cmd == COMMANDS['train']:
 
         printd('Starting MaskRefine training...')
 
-        hist = mr_module.train(train_gen, val_gen)
+        hist = mr_module.train(train_gen, val_gen, epochs=epochs, steps_per_epoch=steps)
         printd(hist)
 elif cmd == COMMANDS['infer']:
     from opt_flow.opt_flow import TensorFlowPWCNet
@@ -150,7 +156,7 @@ elif cmd == COMMANDS['infer']:
 
         if mask_refine_path is not None:
             mr_subnet.load_weights(mask_refine_path)
-
+    # TODO work in progress
 
 elif cmd == COMMANDS['sizes']:
     warn_if_debugging_without_prints("sizes")
