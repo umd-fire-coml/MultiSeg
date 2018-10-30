@@ -4,71 +4,38 @@ from typing import List
 
 
 # BASIC VISUALIZATION PRIMITIVES
-def vis_plot(img, title: str = None):
-    plt.imshow(img)
-    if title is not None:
-        plt.title(title)
-    plt.show()
-
-
-def vis_row(*imgs, titles: List[str] = None):
-    n = len(imgs)
-
-    if n == 1:
-        vis_plot(imgs[0])
-        return
-
-    _, axes = plt.subplots(1, n)
-
-    for i in range(n):
-        axes[i].imshow(imgs[i])
-        if titles is not None and i < len(titles):
-            axes[i].set_title(titles[i])
-
-    plt.show()
-
-
-def vis_col(*imgs, titles: List[str] = None):
-    n = len(imgs)
-
-    if n == 1:
-        vis_plot(imgs[0])
-        return
-
-    _, axes = plt.subplots(n, 1)
-
-    for i in range(n):
-        axes[i].imshow(imgs[i])
-        if titles is not None and i < len(titles):
-            axes[i].set_title(titles[i])
-
-    plt.show()
-
-
 def vis_fill(*imgs, rows=2, cols=2, titles: List[str] = None):
     n = len(imgs)
 
     if n > rows*cols:
         raise ValueError('not enough spots to fill with all the images')
 
-    if rows == 1:
-        vis_row(*imgs, titles=titles)
-    elif cols == 1:
-        vis_col(*imgs, titles=titles)
-    else:
-        _, axes = plt.subplots(rows, cols)
+    _, axes = plt.subplots(rows, cols, squeeze=False)
 
-        i = 0
-        for row in range(rows):
-            for col in range(cols):
-                axes[row][col].imshow(imgs[i])
-                if titles is not None and i < len(titles):
-                    axes[row][col].set_title(titles[i])
-                i += 1
-                if i == n:
-                    break
+    i = 0
+    for row in range(rows):
+        for col in range(cols):
+            # TODO add better support for blank plots in the middle
+            axes[row][col].imshow(imgs[i])
+            if titles is not None and i < len(titles):
+                axes[row][col].set_title(titles[i])
+            i += 1
+            if i == n:
+                break
 
-        plt.show()
+    plt.show()
+
+
+def vis_plot(img, title: str = None):
+    vis_fill(img, rows=1, cols=1, titles=[title])
+
+
+def vis_row(*imgs, titles: List[str] = None):
+    vis_fill(*imgs, rows=1, cols=len(imgs), titles=titles)
+
+
+def vis_col(*imgs, titles: List[str] = None):
+    vis_fill(*imgs, rows=len(imgs), cols=1, titles=titles)
 
 
 def vis_fix_col(*imgs, cols=2, titles: List[str] = None):
