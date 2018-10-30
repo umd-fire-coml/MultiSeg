@@ -4,13 +4,13 @@ from typing import List
 
 
 # BASIC VISUALIZATION PRIMITIVES
-def vis_fill(*imgs, rows=2, cols=2, titles: List[str] = None):
+def vis_fill(*imgs, rows=2, cols=2, titles: List[str] = None, **kwargs):
     n = len(imgs)
 
     if n > rows*cols:
         raise ValueError('not enough spots to fill with all the images')
 
-    _, axes = plt.subplots(rows, cols, squeeze=False)
+    _, axes = plt.subplots(rows, cols, squeeze=False, **kwargs)
 
     i = 0
     for row in range(rows):
@@ -26,35 +26,35 @@ def vis_fill(*imgs, rows=2, cols=2, titles: List[str] = None):
     plt.show()
 
 
-def vis_plot(img, title: str = None):
-    vis_fill(img, rows=1, cols=1, titles=[title])
+def vis_plot(img, title: str = None, **kwargs):
+    vis_fill(img, rows=1, cols=1, titles=[title], **kwargs)
 
 
-def vis_row(*imgs, titles: List[str] = None):
-    vis_fill(*imgs, rows=1, cols=len(imgs), titles=titles)
+def vis_row(*imgs, titles: List[str] = None, **kwargs):
+    vis_fill(*imgs, rows=1, cols=len(imgs), titles=titles, **kwargs)
 
 
-def vis_col(*imgs, titles: List[str] = None):
-    vis_fill(*imgs, rows=len(imgs), cols=1, titles=titles)
+def vis_col(*imgs, titles: List[str] = None, **kwargs):
+    vis_fill(*imgs, rows=len(imgs), cols=1, titles=titles, **kwargs)
 
 
-def vis_fix_col(*imgs, cols=2, titles: List[str] = None):
+def vis_fix_col(*imgs, cols=2, titles: List[str] = None, **kwargs):
     n = len(imgs)
     rows = ceil(n / cols)
 
-    vis_fill(*imgs, rows=rows, cols=cols, titles=titles)
+    vis_fill(*imgs, rows=rows, cols=cols, titles=titles, **kwargs)
 
 
-def vis_fix_row(*imgs, rows=2, titles: List[str] = None):
+def vis_fix_row(*imgs, rows=2, titles: List[str] = None, **kwargs):
     n = len(imgs)
     cols = ceil(n / rows)
 
-    vis_fill(*imgs, rows=rows, cols=cols, titles=titles)
+    vis_fill(*imgs, rows=rows, cols=cols, titles=titles, **kwargs)
 
 
-def vis_square(*imgs, titles: List[str] = None):
+def vis_square(*imgs, titles: List[str] = None, **kwargs):
     n = len(imgs)
     rows, cols = floor(sqrt(n)), ceil(sqrt(n))
 
-    vis_fill(*imgs, rows=rows, cols=cols, titles=titles)
+    vis_fill(*imgs, rows=rows, cols=cols, titles=titles, **kwargs)
 
