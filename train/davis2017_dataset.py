@@ -204,6 +204,7 @@ class Davis2017Dataset(utils.Dataset):
 
             i += 1
 
+        print(f'Created paired generator with {len(id_pairs)} image pairs.')
         sentinel = (-1, -1)
 
         shuffle(id_pairs)

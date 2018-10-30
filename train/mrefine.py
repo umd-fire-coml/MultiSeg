@@ -121,7 +121,7 @@ elif cmd == COMMANDS['train']:
 
     dataset, seq = load_data_peripherals(dataset_path)
 
-    train, val = splitd(dataset, 1 - val_split, val_split)
+    train, val = splitd(dataset, 1 - val_split, val_split, shuffle=False)
     train_gen, val_gen = train.paired_generator(seq), val.paired_generator(seq)
 
     pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=optical_flow_path, verbose=print_debugs)
