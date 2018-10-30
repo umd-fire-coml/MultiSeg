@@ -194,6 +194,7 @@ class Davis2017Dataset(utils.Dataset):
         while i < len(ordered_ids) - 1:
             # at the change point between videos
             if self.image_info[i]['video'] != self.image_info[i + 1]['video']:
+                i += 1
                 continue
 
             j = i + 1
