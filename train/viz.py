@@ -4,13 +4,13 @@ from typing import List
 
 
 # BASIC VISUALIZATION PRIMITIVES
-def vis_fill(*imgs, rows=2, cols=2, titles: List[str] = None, **kwargs):
+def vis_fill(*imgs, rows=2, cols=2, titles: List[str] = None, save_path=None, **kwargs):
     n = len(imgs)
 
     if n > rows*cols:
         raise ValueError('not enough spots to fill with all the images')
 
-    _, axes = plt.subplots(rows, cols, squeeze=False, **kwargs)
+    fig, axes = plt.subplots(rows, cols, squeeze=False, **kwargs)
 
     i = 0
     for row in range(rows):
@@ -22,6 +22,9 @@ def vis_fill(*imgs, rows=2, cols=2, titles: List[str] = None, **kwargs):
             i += 1
             if i == n:
                 break
+
+    if save_path is not None:
+        fig.savefig(save_path)
 
     plt.show()
 
