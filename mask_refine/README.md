@@ -8,7 +8,6 @@ current frame given the previous frame, current frame, and the output of Mask-RC
 ## What this directory contains
 * [Mask Refine](./mask_refine.py) - Current Mask Refine module
 * [Mask Propagation](./mask_propagation.py) - Old Mask Refine module - DO NOT USE - it is here for reference
-* [Mask Refine](./mask_refine.py) - The Demo Jupyter notebook for this module
 * [__init__.py](./__init__.py) - Exists for Python packaging
 * [README.md](./README.md) - This file!
 
@@ -23,4 +22,6 @@ if the requirements.txt in the root directory are all installed via the setup.py
 
 ## How to run the demo
 
-Open the [demo.ipynb](./demo.ipynb) notebook and run block by block!
+Open the [demo_mask_refine.ipynb](../demo_mask_refine.ipynb) notebook and run block by block!
+Note: the notebook is in the root directory of the repository because it needs access to files
+outside of this directory.
