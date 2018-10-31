@@ -60,6 +60,9 @@ class Davis2017Dataset(utils.Dataset):
         self.quality = quality
         self.data_dir = data_dir
 
+    def __len__(self):
+        return len(self.image_ids)
+
     @property
     def all_masked(self) -> bool:
         """Whether all images in this dataset have a mask. This method is O(n),
@@ -135,6 +138,9 @@ class Davis2017Dataset(utils.Dataset):
 
         return 'mask_path' in self.image_info[image_id]
 
+    def __getitem__(self, item: int):
+        return self.load_float_mask(item)
+
     def load_mask(self, image_id: int):
         info = self.image_info[image_id]
 
@@ -180,31 +186,45 @@ class Davis2017Dataset(utils.Dataset):
         y: ground truth mask
         """
 
-        augmentation = augmentation.to_deterministic()
-
         ordered_ids = deepcopy(self.image_ids[1:])
-        shuffle(ordered_ids)
-        sentinel = -1
 
-        id_queue = deque(ordered_ids)
-        id_queue.appendleft(sentinel)
+        id_pairs = []
+
+        i = 0
+        while i < len(ordered_ids) - 1:
+            # at the change point between videos
+            if self.image_info[i]['video'] != self.image_info[i + 1]['video']:
+                i += 1
+                continue
+
+            j = i + 1
+            while j < len(ordered_ids) - 1 and self.image_info[i]['video'] == self.image_info[j]['video']:
+                id_pairs.append((i, j))
+
+                j += 1
+
+            i += 1
+
+        print(f'Created paired generator with {len(id_pairs)} image pairs.')
+        sentinel = (-1, -1)
+
+        shuffle(id_pairs)
+        id_pair_queue = deque(id_pairs)
+        id_pair_queue.appendleft(sentinel)
 
         while True:
             # process the next image
-            curr_id = id_queue.pop()
+            prev_id, curr_id = id_pair_queue.pop()
 
             # reshuffle if reached the sentinel
-            if curr_id == sentinel:
-                shuffle(id_queue)
-                id_queue.appendleft(sentinel)
-                continue
-
-            # skip this pair if not in the same video
-            if self.image_info[curr_id]['video'] != self.image_info[curr_id - 1]['video']:
+            if prev_id == curr_id:
+                shuffle(id_pairs)
+                id_pair_queue = deque(id_pairs)
+                id_pair_queue.appendleft(sentinel)
                 continue
 
             # load originals
-            prev_image = self.load_image(curr_id - 1)
+            prev_image = self.load_image(prev_id)
             curr_image = self.load_image(curr_id)
             gt_masks, _ = self.load_float_mask(curr_id)
             aug_masks, _ = self.load_int_mask(curr_id)
@@ -212,8 +232,10 @@ class Davis2017Dataset(utils.Dataset):
             # generate a pair for each mask instance
             for i in range(gt_masks.shape[-1]):
                 if mask_as_input:
+                    aug_for_this = augmentation.to_deterministic()
+
                     aug_mask = np.expand_dims(aug_masks[..., i], axis=2)
-                    aug_mask = augmentation.augment_image(aug_mask)
+                    aug_mask = aug_for_this.augment_image(aug_mask)
 
                     X = np.concatenate((prev_image, curr_image, aug_mask), axis=2)
                 else:
@@ -224,7 +246,7 @@ class Davis2017Dataset(utils.Dataset):
                 yield X, y
 
             # add the image to the back of the queue
-            id_queue.appendleft(curr_id)
+            id_pair_queue.appendleft(curr_id)
 
     def build_absolute_path_to(self, selection: str, video_and_filename: str) -> str:
         """

@@ -1,6 +1,6 @@
 numpy=1.13
 keras=2.1
-tensorflow-gpu=1.6
+tensorflow-gpu=1.11
 scipy
 Pillow
 cython
