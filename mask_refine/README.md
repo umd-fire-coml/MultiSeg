@@ -8,7 +8,7 @@ current frame given the previous frame, current frame, and the output of Mask-RC
 ## What this directory contains
 * [Mask Refine](./mask_refine.py) - Current Mask Refine module
 * [Mask Propagation](./mask_propagation.py) - Old Mask Refine module - DO NOT USE - it is here for reference
-* [__init__.py](./__init__.py) - Exists for Python packaging
+* [__init__.py](./__init__.py) - Just there for Python packaging
 * [README.md](./README.md) - This file!
 
 ## What to do BEFORE using this directory
