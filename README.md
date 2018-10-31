@@ -19,20 +19,20 @@ This project was developed on Python 3.6, Tensorflow 1.11, Keras 2.1, and Numpy
 other versions).
 
 ### 1. Install dependencies
-We recommend that you use a virtual python environment for this repository. The
-instructions here will guide you through the process if you have Anaconda
-installed (the commands are similar for other virtual environment packages, like
-the virtualenv package).
-
-Create a new virtual environment named multiseg (if you are on the shared Google
-instance, there is already a conda virtual env with the correct dependencies),
-and then start the virtualenv:
+If you are on the shared Google instance, there is already a conda virtual env 
+with the correct dependencies. To start it, run 
+```bash
+source activate multiseg
+```
 
 Run the setup.py script, which will also install the dependencies for this
 project (using pip):
 ```bash
 python setup.py install
 ```
+
+If the script fails, you may have to manually install each dependency using pip
+(pip is required for some dependencies; conda does not work).
 
 ### 2. Acquire datasets
 #### Download datasets
@@ -41,13 +41,13 @@ You can acquire the full
 [WAD CVPR 2018](https://www.kaggle.com/c/cvpr-2018-autonomous-driving/data)
 datasets at their respective sources, but we also have a "mini-DAVIS" and a 
 "mini-WAD" dataset that has the same folder structure but only contains a very 
-small subset of the images.
+small subset of the images--which allows for easier testing and evaluation.
 
 * For **CVPR WAD 2018**, there is only the 'train' subset (and only certain images
 within the subset).
 
-* For **DAVIS 2017**, there is only the 'trainval' subset (and only some of the 
-images/videos within the subset).
+* For **DAVIS 2017**, there is only the 'trainval' subset at 480p resolution 
+(and only some of the images/videos within the subset).
 
 The mini-datasets can be found on our github repository's
 [releases page](https://github.com/umd-fire-coml/MultiSeg/releases). We are 
@@ -60,7 +60,7 @@ data directory):
 **CVPR WAD 2018**: `.\train_color\`
 
 **DAVIS 2017**: 
-`.\T0-VidSeg\data\DAVIS\DAVIS-2017-trainval-480p\DAVIS\JPEGImages\480p\blackswan\`
+`.\DAVIS-2017-trainval-480p\DAVIS\JPEGImages\480p\blackswan\`
 
 ### 3. Download pre-trained weights
 Currently, we have released pre-trained weights for the following modules only:
