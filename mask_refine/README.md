@@ -34,3 +34,8 @@ if the requirements.txt in the root directory are all installed via the setup.py
 Open the [demo_mask_refine.ipynb](../demo_mask_refine.ipynb) notebook and run block by block!
 Note: the notebook is in the root directory of the repository because it needs access to files
 outside of this directory.
+
+## Future steps
+
+1. Implement improved loss that weights changes in the mask higher than unchanged pixels in the loss function.
+2. Find a non-hacky solution to work with PWC-Net.
