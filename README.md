@@ -19,13 +19,13 @@ This project was developed on Python 3.6, Tensorflow 1.11, Keras 2.1, and Numpy
 other versions).
 
 ### 1. Install dependencies
-If you are on the shared Google instance, there is already a conda virtual env 
+If you are on the shared Google instance (for UMD FIRE COML), there is already a conda virtual env 
 with the correct dependencies. To start it, run 
 ```bash
 source activate multiseg
 ```
 
-Run the setup.py script, which will also install the dependencies for this
+Otherwise, run the setup.py script, which will also install the dependencies for this
 project (using pip):
 ```bash
 python setup.py install
