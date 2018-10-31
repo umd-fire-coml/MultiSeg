@@ -1,8 +1,23 @@
 # Multiple Video Instance Object Segmentation and Tracking
 
 ## Overview
+The goal of this model is to segment multiple object instances from both video
+and still images and track (identify) objects over consecutive frames. There are
+3 major modules:
+* Image Segmentation Module
+  * Mask R-CNN
+* Identification Module
+  * Triplet Network
+  * FAISS Database
+* Mask Refine Module
+  * PWC-Net
+  * U-Net
 
 ## Instructions for Use
+This project was developed on Python 3.6, Tensorflow 1.11, Keras 2.1, and Numpy 
+1.13. To ensure full compatibility, use these versions (but it may work with
+other versions).
+
 ### 1. Install dependencies
 We recommend that you use a virtual python environment for this repository. The
 instructions here will guide you through the process if you have Anaconda
@@ -12,20 +27,11 @@ the virtualenv package).
 Create a new virtual environment named multiseg (if you are on the shared Google
 instance, there is already a conda virtual env with the correct dependencies),
 and then start the virtualenv:
-```bash
-conda create -y -n multiseg python=3.6
-source activate multiseg
-```
 
 Run the setup.py script, which will also install the dependencies for this
 project (using pip):
 ```bash
 python setup.py install
-```
-
-After you're done with the virtual environment, run this to deactivate:
-```bash
-source deactivate
 ```
 
 ### 2. Acquire datasets
