@@ -12,7 +12,7 @@ from the previous image to the current image.
 current image through a U-Net to get the refined mask the same object in the current image.
 
 Here is a diagram of the process:
-![Diagram of Mask Refine Module](./mask_refine_diagram.png)
+<div style="text-align:center"><img src ="https://github.com/umd-fire-coml/MultiSeg/raw/master/mask_refine/mask_refine_diagram.png" /></div>
 
 ## What this directory contains
 * [Mask Refine](./mask_refine.py) - Current Mask Refine module
