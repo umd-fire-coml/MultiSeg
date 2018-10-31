@@ -9,7 +9,7 @@ and still images and track (identify) objects over consecutive frames. There are
 * Identification Module
   * Triplet Network
   * FAISS Database
-* Mask Refine Module
+* [Mask Refine Module](mask_refine/README.md)
   * PWC-Net
   * U-Net
 
