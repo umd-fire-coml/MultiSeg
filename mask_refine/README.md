@@ -3,7 +3,16 @@
 ## What this module does
 
 The Mask Refine module is responsible for estimating the location of the mask for an object in the
-current frame given the previous frame, current frame, and the output of Mask-RCNN on the previous frame.
+current frame given the previous frame, current frame, and the output of Mask-RCNN on the current frame.
+
+The model flows as follows:
+1. Runs the previous image and the current image through a PWC-Net to get the optical flow field
+from the previous image to the current image.
+2. Runs the current image, the optical flow field, and a predicted mask for a specific object from the
+current image through a U-Net to get the refined mask the same object in the current image.
+
+Here is a diagram of the process:
+![Diagram of Mask Refine Module](./mask_refine_diagram.png)
 
 ## What this directory contains
 * [Mask Refine](./mask_refine.py) - Current Mask Refine module
