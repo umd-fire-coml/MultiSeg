@@ -39,12 +39,14 @@ If the script fails, you may have to manually install each dependency using pip
 You can acquire the full
 [DAVIS 2017](https://davischallenge.org/davis2017/code.html) and full 
 [WAD CVPR 2018](https://www.kaggle.com/c/cvpr-2018-autonomous-driving/data)
-datasets at their respective sources, but we also have a "mini-DAVIS" and a 
-"mini-WAD" dataset that has the same folder structure but only contains a very 
-small subset of the images--which allows for easier testing and evaluation.
+datasets at their respective sources (warning, the WAD dataset is extremely
+large, which is why we're providing alternatives), but we also have a
+"mini-DAVIS" and a "mini-WAD" dataset that has the same folder structure but 
+only contains a very small subset of the images--which allows for easier testing 
+and evaluation.
 
 * For **CVPR WAD 2018**, there is only the 'train' subset (and only certain images
-within the subset).
+within the subset. No annotations.).
 
 * For **DAVIS 2017**, there is only the 'trainval' subset at 480p resolution 
 (and only some of the images/videos within the subset).
@@ -82,6 +84,13 @@ For the optical flow model weights, you can find the latest versions
 directory name specified above).
 
 ### 4. Run a demo inference script
+It's very easy to run these notebooks:
+1. In the first few cells, make sure to check that you've downloaded the file
+dependencies and have in the right location (or change the path in the code).
+2. Then, simply execute each cell in order.
+3. To rerun the inference for difference images, simply rerun the cells in the
+inference section of each notebook, and a new random image will be chosen.
+
 #### Instance Segmentation (Matterport implementation of Mask R-CNN)
 Notebook: [Instance Segmentation Notebook](demo_image_seg.ipynb)
 
