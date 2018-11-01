@@ -1,7 +1,7 @@
 from datetime import datetime
 from keras import backend as K
 from keras.callbacks import TensorBoard, CSVLogger, ModelCheckpoint
-from keras.layers import Input, Conv2D, Dropout, MaxPooling2D, Conv2DTranspose, Concatenate, BatchNormalization
+from keras.layers import Input, Conv2D, MaxPooling2D, Conv2DTranspose, Concatenate, BatchNormalization
 from keras.models import Model
 from keras.optimizers import Adam
 from os import path
@@ -310,7 +310,7 @@ class MaskRefineModule:
 
                 assert rank(X) == 3 and rank(y) == 3
 
-                # pad image and mask to multiples of 64 TODO: make it also scale back (scikit-learn?)
+                # pad image and mask to multiples of 64
                 X = pad64(X)
                 y = pad64(y)
 
@@ -346,7 +346,7 @@ class MaskRefineModule:
 
         assert rank(input_stack) == 3
 
-        input_stack = pad64(input_stack)
+        input_stack = pad64(input_stack)  # TODO also make scale back to orig size
 
         flow_field = self.optical_flow_model.infer_from_image_stack(input_stack[..., :6])
         subnet_input_stack = MaskRefineSubnet.build_input_stack(input_stack[..., 3:6],
