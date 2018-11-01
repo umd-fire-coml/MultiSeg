@@ -13,6 +13,8 @@ and still images and track (identify) objects over consecutive frames. There are
   * PWC-Net
   * U-Net
 
+![MultiSeg Network Diagram](MultiSeg Model.png)
+
 ## Instructions for Use
 This project was developed on Python 3.6, Tensorflow 1.11, Keras 2.1, and Numpy 
 1.13. To ensure full compatibility, use these versions (but it may work with
