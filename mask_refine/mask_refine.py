@@ -230,7 +230,7 @@ class MaskRefineSubnet:
             os.mkdir(log_directory)
         
         checkpoint_file = path.join(log_directory, 'davis_unet_weights__{epoch:02d}__{val_loss:.2f}.h5')
-        history_file = path.join(log_directory, f'/mr_history_{date_and_time}.csv')
+        history_file = path.join(log_directory, f'mr_history_{date_and_time}.csv')
 
         callbacks = [
             TensorBoard(
