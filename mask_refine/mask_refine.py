@@ -1,5 +1,4 @@
 from datetime import datetime
-from keras import backend as K
 from keras.callbacks import TensorBoard, CSVLogger, ModelCheckpoint
 from keras.layers import Input, Conv2D, MaxPooling2D, Conv2DTranspose, Concatenate, BatchNormalization
 from keras.models import Model
@@ -7,6 +6,8 @@ from keras.optimizers import Adam
 from os import path
 import math
 import numpy as np
+import tensorflow as tf
+import tensorflow.keras.backend as K
 
 from opt_flow.opt_flow import OpticalFlowNetwork
 
@@ -73,8 +74,8 @@ def pad64(tensor):
 
 
 def mask_binary_crossentropy_loss(y_true, y_pred):
-    return K.division(K.sum(K.binary_crossentropy(y_true, y_pred)),
-                      K.sum(y_true))
+    return tf.divide(tf.reduce_sum(K.binary_crossentropy(y_true, y_pred)),
+                     tf.reduce_sum(y_true))
 
 
 def compute_mask_binary_cross_entropy_loos(y_true, y_pred):
