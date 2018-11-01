@@ -109,7 +109,7 @@ class MaskRefineSubnet:
         deconvolutions instead of 2x2 upsampling.
         """
 
-        optimizer = Adam(lr=1e-4)
+        optimizer = Adam()
 
         inputs = Input((None, None, 6))
 
