@@ -1,9 +1,10 @@
 from datetime import datetime
-import keras.backend as tf
+from keras import backend as K
 from keras.callbacks import TensorBoard, CSVLogger, ModelCheckpoint
 from keras.layers import Input, Conv2D, Dropout, MaxPooling2D, Conv2DTranspose, Concatenate, BatchNormalization
 from keras.models import Model
 from keras.optimizers import Adam
+from os import path
 import math
 import numpy as np
 
@@ -13,22 +14,22 @@ __all__ = ['MaskRefineSubnet', 'MaskRefineModule']
 
 
 # functional layers
-def _conv2d(filters, kernel=3, activation='relu', kernel_initializer='he_normal', name=None):
+def _conv2d(filters, kernel=3, activation='relu', kernel_initializer='he_normal', **kwargs):
     return Conv2D(filters, kernel, activation=activation, padding='same',
-                  kernel_initializer=kernel_initializer, name=name)
+                  kernel_initializer=kernel_initializer, **kwargs)
 
 
-def _deconv2d(filters, activation=None, name=None):
+def _deconv2d(filters, activation=None, **kwargs):
     return Conv2DTranspose(filters, (2, 2), strides=(2, 2),
-                           activation=activation, name=name)
+                           activation=activation, **kwargs)
 
 
-def _maxpool2d(pool_size=(2, 2), name=None):
-    return MaxPooling2D(pool_size=pool_size, name=name)
+def _maxpool2d(pool_size=(2, 2), **kwargs):
+    return MaxPooling2D(pool_size=pool_size, **kwargs)
 
 
-def _concat(axis=3, name=None):
-    return Concatenate(axis=axis, name=name)
+def _concat(axis=3, **kwargs):
+    return Concatenate(axis=axis, **kwargs)
 
 
 def _batchnorm():
@@ -37,10 +38,32 @@ def _batchnorm():
 
 # utils & other
 def rank(tensor):
+    """
+    Returns the rank (number of dimensions) of a tensor. Equivalent to
+    len(tensor.shape).
+    
+    Args:
+        tensor: tensor to check rank of
+
+    Returns:
+        rank (ndims) of the given tensor
+    """
+    
     return len(tensor.shape)
 
 
 def pad64(tensor):
+    """
+    Pads an image with zeros to the next largest multiple of 64, centering the
+    image as much as possible.
+    
+    Args:
+        tensor: image to pad
+
+    Returns:
+        padded image with dimensions that are multiples of 64
+
+    """
     # pads images with zeros to the next largest multiple of 64 (center fix)
     h_, w_ = math.ceil(tensor.shape[0] / 64) * 64, math.ceil(tensor.shape[1] / 64) * 64
     h_pad, w_pad = h_ - tensor.shape[0], w_ - tensor.shape[1]
@@ -49,9 +72,15 @@ def pad64(tensor):
                            (0, 0)), mode='constant')
 
 
-def edge_focused_loss(y_true, y_pred):
-    # TODO calculate an edge-focused loss
-    pass
+def mask_binary_crossentropy_loss(y_true, y_pred):
+    return K.division(K.sum(K.binary_crossentropy(y_true, y_pred)),
+                      K.sum(y_true))
+
+
+def compute_mask_binary_cross_entropy_loos(y_true, y_pred):
+    binary_crossentropy = 0  # TODO finish implementing this in numpy
+    
+    return np.sum(binary_crossentropy) / np.sum(y_true)
 
 
 # TODO check tensor data types
@@ -67,14 +96,17 @@ class MaskRefineSubnet:
         if weights_path is not None:
             self.load_weights(weights_path)
 
-    def _build_model(self, loss='binary_crossentropy'):
+    def _build_model(self, loss=mask_binary_crossentropy_loss):
         """
-        Builds the U-Net for the mask propagation network, 5 levels deep.
-        :param optimizer: optimizer object to use to train
-        :param loss: loss function (as string) to use to train
+        Builds a U-Net for the mask refine network, 5 levels deep. Adapted from
+        the original U-Net paper. Optimizes using adam schedule.
+        
+        Args:
+            loss: loss function to use
 
-        Adapted by Shivam, Derek, and Tim from https://github.com/ShawDa/unet-rgb/blob/master/unet.py. Adaptations
-        include a binary focal loss, transposed convolutions, and varied activations.
+        Batch normalization is applied after every convolutional layer (except
+        the very last layer). No (spatial) dropout is used. We elect to use 2x2
+        deconvolutions instead of 2x2 upsampling.
         """
 
         optimizer = Adam(lr=1e-4)
@@ -168,22 +200,43 @@ class MaskRefineSubnet:
         self._model = model
 
     def load_weights(self, weights_path):
-        """Load pretrained weights."""
+        """
+        Load pretrained weights for the U-Net (in hdf5 format).
+        
+        Args:
+            weights_path: path with filename of the weights binary
+        """
 
         self._model.load_weights(weights_path)
 
     def train(self, train_generator, val_generator, epochs=30, steps_per_epoch=500, val_steps_per_epoch=1000):
-        history_file = "logs/mask_refine_history_" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
+        """
+        Trains the U-Net using inputs and ground truth from the given generators.
+        
+        Args:
+            train_generator: generate X, y input pairs for training
+            val_generator: generate X, y input pairs for validation
+            epochs: number of epochs to train
+            steps_per_epoch: number of image pairs + masks per epoch for training
+            val_steps_per_epoch: number of image pairs + mask per epoch for validation
+
+        Returns: Keras history object
+        """
+        
+        date_and_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        log_directory = f'./logs/mr_training_{date_and_time}/'
+        checkpoint_file = path.join(log_directory, 'davis_unet_weights__{epoch:02d}__{val_loss:.2f}.h5')
+        history_file = path.join(log_directory, f'/mr_history_{date_and_time}.csv')
 
         callbacks = [
             TensorBoard(
-                log_dir="logs",
+                log_dir=log_directory,
                 histogram_freq=0,
                 write_graph=True,
                 write_images=False
             ),
             ModelCheckpoint(
-                "logs/davis_unet_weights__{epoch:02d}__{val_loss:.2f}.h5",
+                checkpoint_file,
                 verbose=0, save_weights_only=True
             ),
             CSVLogger(history_file)
@@ -201,17 +254,24 @@ class MaskRefineSubnet:
         return history
 
     def predict(self, input_stack):
-        """Run inference for a set of inputs (batch size of 1).
-        :param input_stack: current image, mask, optical flow of shape [1, h, w, 6]
-        :return: refined mask of shape [1, h, w, 1]
-
-        input stack (concatenated along the 3rd axis (axis=2)):
-        IMAGE [h,w,3]
-        MASK  [h,w,1]
-        FLOW  [h,w,2]
         """
+        Run inference for a set of inputs (batch size must be 1).
+        
+        Args:
+            input_stack: inputs to mask refine model (see below)
 
-        assert rank(input_stack) == 4
+        Returns:
+            refined mask of shape [1, h, w, 1]
+        
+        Input stack of shape [1, h, w, 6]
+            IMAGE [1, h, w, 3]
+            MASK  [1, h, w, 1]
+            FLOW  [1, h, w, 2]
+        These are all concatenated along axis=2 (3rd axis).
+        """
+        
+        if rank(input_stack) != 4:
+            raise ValueError(f'input stack must have rank 4 (provided: {rank(input_stack)})')
 
         return self._model.predict(input_stack, batch_size=1)
 

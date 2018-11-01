@@ -175,11 +175,24 @@ class Davis2017Dataset(utils.Dataset):
             return '<Davis 2017 Dataset (unprepared)>'
 
     def paired_generator(self, augmentation=iaa.Noop(), mask_as_input=True, max_pair_dist=10):
+        """
+        Creates a generator that returns pairs of consecutive images (as input)
+        and the mask for the second image (as ground truth).
+        Args:
+            augmentation: sequence of imgaug augmentations to perform on each
+            mask to transform it into an input mask
+            mask_as_input:
+            max_pair_dist:
+
+        Returns:
+
+        """
         """ TODO different batch sizes?
         Creates generator that returns pairs of consecutive images (as input)
         and the mask for the second image (as ground truth).
         :param augmentation: augmentations to perform on each mask (as input)
         :param mask_as_input: whether to add a mask as part of the input stack
+        :param max_pair_dist: maximum distance between 2 images (in a pair)
         If mask_as_input is False, mask_augs is ignored.
 
         X: previous image, current image, (mask as input)
@@ -197,6 +210,7 @@ class Davis2017Dataset(utils.Dataset):
                 i += 1
                 continue
 
+            # add image pairs until we reach the max distance (in frame) away
             j = i + 1
             while j < len(ordered_ids) - 1 \
                     and self.image_info[i]['video'] == self.image_info[j]['video'] \
