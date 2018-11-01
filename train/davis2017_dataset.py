@@ -174,7 +174,7 @@ class Davis2017Dataset(utils.Dataset):
         except AttributeError:
             return '<Davis 2017 Dataset (unprepared)>'
 
-    def paired_generator(self, augmentation=iaa.Noop(), mask_as_input=True):
+    def paired_generator(self, augmentation=iaa.Noop(), mask_as_input=True, max_pair_dist=10):
         """ TODO different batch sizes?
         Creates generator that returns pairs of consecutive images (as input)
         and the mask for the second image (as ground truth).
@@ -198,7 +198,9 @@ class Davis2017Dataset(utils.Dataset):
                 continue
 
             j = i + 1
-            while j < len(ordered_ids) - 1 and self.image_info[i]['video'] == self.image_info[j]['video']:
+            while j < len(ordered_ids) - 1 \
+                    and self.image_info[i]['video'] == self.image_info[j]['video'] \
+                    and j - i < max_pair_dist:
                 id_pairs.append((i, j))
 
                 j += 1
