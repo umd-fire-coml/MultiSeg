@@ -154,7 +154,7 @@ class MaskRefineSubnet:
         merge6 = _concat()([norm4, norm6])
         conv6 = _conv2d(512, name='up4-conv1')(merge6)
         norm6 = _batchnorm()(conv6)
-        conv6 = _conv2d(512, name='up4-conv1')(norm6)
+        conv6 = _conv2d(512, name='up4-conv2')(norm6)
         norm6 = _batchnorm()(conv6)
 
         # block 7 (up-3)
