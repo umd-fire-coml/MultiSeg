@@ -15,6 +15,7 @@ import argparse
 import imgaug.augmenters as iaa
 import sys
 from warnings import warn
+import tensorflow as tf
 
 from train.davis2017_dataset import *
 from train.datautils import splitd
@@ -74,6 +75,7 @@ parser.add_argument('-v', '--validation-split', dest='val_split', type=float,
 parser.add_argument('-e', '-epochssteps', dest='epochssteps', type=int,
                     nargs=2, default=[200, 1000])
 parser.add_argument('-p', '--print-debugs', dest='print_debugs', action='store_true')
+parser.add_argument('--gpu', dest='device', type=int, nargs=1, default=[0])
 
 ############################################################################
 
@@ -87,6 +89,7 @@ val_split = args.val_split[0]
 epochs = args.epochssteps[0]
 steps = args.epochssteps[1]
 print_debugs = args.print_debugs
+device = args.device[0]
 
 print('Arguments given to trainmaskrefine command: ')
 print(f'\tcommand\t{cmd}')
@@ -97,6 +100,7 @@ print(f'\tv split\t{val_split}')
 print(f'\tepochs\t{epochs}')
 print(f'\tsteps\t{steps}')
 print(f'\tdebugs\t{print_debugs}')
+print(f'\tdevice\tGPU:{device}')
 print()
 
 
@@ -167,30 +171,31 @@ elif cmd == COMMANDS['sizes']:
 
     dataset, seq = load_data_peripherals(dataset_path)
 
-    pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=optical_flow_path, verbose=print_debugs)
-    with pwc_net.graph.as_default():
-        mr_subnet = MaskRefineSubnet()
-        mr_module = MaskRefineModule(pwc_net, mr_subnet)
-
-        input_stack = np.empty((1, 480, 854, 6))
-        output = mr_subnet.predict(input_stack)
-
-        printd('INPUT/OUTPUT INFERENCE TESTS')
-        printd('MaskRefineSubnet:')
-        printd(f'Input Shape:\t{input_stack.shape}')
-        printd(f'Output Shape:\t{output.shape}')
-
-        input_stack = np.empty((480, 854, 6))
-        output = pwc_net.infer_from_image_stack(input_stack)
-
-        printd('PWCNet:')
-        printd(f'Input Shape:\t{input_stack.shape}')
-        printd(f'Output Shape:\t{output.shape}')
-
-        input_stack = np.empty((480, 854, 7))
-        output = mr_module.refine_mask(input_stack)
-
-        printd('Entire Module:')
-        printd(f'Input Shape:\t{input_stack.shape}')
-        printd(f'Output Shape:\t{output.shape}')
+    with tf.device(f'/device:GPU:{device}'):
+        pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=optical_flow_path, verbose=print_debugs)
+        with pwc_net.graph.as_default():
+            mr_subnet = MaskRefineSubnet()
+            mr_module = MaskRefineModule(pwc_net, mr_subnet)
+    
+            input_stack = np.empty((1, 480, 854, 6))
+            output = mr_subnet.predict(input_stack)
+    
+            printd('INPUT/OUTPUT INFERENCE TESTS')
+            printd('MaskRefineSubnet:')
+            printd(f'Input Shape:\t{input_stack.shape}')
+            printd(f'Output Shape:\t{output.shape}')
+    
+            input_stack = np.empty((480, 854, 6))
+            output = pwc_net.infer_from_image_stack(input_stack)
+    
+            printd('PWCNet:')
+            printd(f'Input Shape:\t{input_stack.shape}')
+            printd(f'Output Shape:\t{output.shape}')
+    
+            input_stack = np.empty((480, 854, 7))
+            output = mr_module.refine_mask(input_stack)
+    
+            printd('Entire Module:')
+            printd(f'Input Shape:\t{input_stack.shape}')
+            printd(f'Output Shape:\t{output.shape}')
 

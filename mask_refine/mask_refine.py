@@ -210,7 +210,7 @@ class MaskRefineSubnet:
 
         self._model.load_weights(weights_path)
 
-    def train(self, train_generator, val_generator, epochs=30, steps_per_epoch=500, val_steps_per_epoch=1000):
+    def train(self, train_generator, val_generator, epochs=30, steps_per_epoch=500, val_steps_per_epoch=100):
         """
         Trains the U-Net using inputs and ground truth from the given generators.
         
