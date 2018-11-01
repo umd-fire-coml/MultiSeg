@@ -6,6 +6,7 @@ from keras.optimizers import Adam
 from os import path
 import math
 import numpy as np
+import os
 import tensorflow as tf
 import tensorflow.keras.backend as K
 
@@ -225,6 +226,9 @@ class MaskRefineSubnet:
         
         date_and_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         log_directory = f'./logs/mr_training_{date_and_time}/'
+        if not path.exists(log_directory):
+            os.mkdir(log_directory)
+        
         checkpoint_file = path.join(log_directory, 'davis_unet_weights__{epoch:02d}__{val_loss:.2f}.h5')
         history_file = path.join(log_directory, f'/mr_history_{date_and_time}.csv')
 
