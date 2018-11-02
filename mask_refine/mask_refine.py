@@ -54,6 +54,11 @@ def rank(tensor):
     return len(tensor.shape)
 
 
+def check_rank(tensor, corr_rank):
+    if rank(tensor) != corr_rank:
+        raise ValueError(f'input must have rank {corr_rank} (provided: {rank(tensor)})')
+
+
 def pad64(tensor):
     """
     Pads an image with zeros to the next largest multiple of 64, centering the
@@ -114,6 +119,15 @@ class MaskRefineSubnet:
         optimizer = Adam()
 
         inputs = Input((None, None, 6))
+        
+        '''
+        Layers are named as follows:
+            * first part is the block name (either 'down' or 'up') followed by
+              depth of the level
+            * followed by a hyphen
+            * last part is the type of layer, following by the occurrence of that
+              layer in that level
+        '''
 
         # block 1 (down-1)
         conv1 = _conv2d(64, name='down1-conv1')(inputs)
@@ -224,14 +238,17 @@ class MaskRefineSubnet:
         Returns: Keras history object
         """
         
+        # create the log directory for this training session
         date_and_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         log_directory = f'./logs/mr_training_{date_and_time}/'
         if not path.exists(log_directory):
             os.mkdir(log_directory)
         
+        # create the file names for the training files for this session
         checkpoint_file = path.join(log_directory, 'davis_unet_weights__{epoch:02d}__{val_loss:.2f}.h5')
         history_file = path.join(log_directory, f'mr_history_{date_and_time}.csv')
 
+        # training callbacks
         callbacks = [
             TensorBoard(
                 log_dir=log_directory,
@@ -274,8 +291,7 @@ class MaskRefineSubnet:
         These are all concatenated along axis=2 (3rd axis).
         """
         
-        if rank(input_stack) != 4:
-            raise ValueError(f'input stack must have rank 4 (provided: {rank(input_stack)})')
+        check_rank(input_stack, 4)
 
         return self._model.predict(input_stack, batch_size=1)
 
@@ -289,8 +305,10 @@ class MaskRefineSubnet:
         :param flow_field: optical flow tensor of shape [h, w, 2]
         :return: input stack of shape [1, h, w, 6]
         """
-
-        assert rank(image) == 3 and rank(mask) == 3 and rank(flow_field) == 3
+        
+        check_rank(image, 3)
+        check_rank(mask, 3)
+        check_rank(flow_field, 3)
 
         return np.expand_dims(np.concatenate((image, mask, flow_field), axis=2), axis=0)
 
@@ -309,16 +327,31 @@ class MaskRefineModule:
         self.mask_refine_subnet = mask_refine_subnet
 
     def train(self, train_generator, val_generator, **kwargs):
+        """
+        
+        Args:
+            train_generator:
+            val_generator:
+            **kwargs:
+
+        Returns:
+
+        """
+        
+        # define a wrapper generator that applies optical flow to some of the
+        # inputs and creates a new input stack and ground truth
         def with_optical_flow(gen):
             while True:
                 X, y = next(gen)
-
-                assert rank(X) == 3 and rank(y) == 3
+                
+                check_rank(X, 3)
+                check_rank(y, 3)
 
                 # pad image and mask to multiples of 64
                 X = pad64(X)
                 y = pad64(y)
 
+                # generate flow field and build new input stack
                 flow_field = self.optical_flow_model.infer_from_image_stack(X[..., :6])
                 Xnew = MaskRefineSubnet.build_input_stack(
                     X[..., 3:6],
@@ -326,7 +359,7 @@ class MaskRefineModule:
                     flow_field)
 
                 ynew = np.expand_dims(y, axis=0)
-
+                
                 assert rank(Xnew) == 4 and rank(ynew) == 4
 
                 yield Xnew, ynew
@@ -349,7 +382,7 @@ class MaskRefineModule:
         COARSE MASK [h, w, 1]
         """
 
-        assert rank(input_stack) == 3
+        check_rank(input_stack, 3)
 
         input_stack = pad64(input_stack)  # TODO also make scale back to orig size
 
@@ -375,8 +408,8 @@ class MaskRefineModule:
         COARSE MASK [h, w, 1]
         """
 
-        assert rank(input_stack) == 3
-        assert rank(gt_mask) == 3
+        check_rank(input_stack, 3)
+        check_rank(gt_mask, 3)
 
         input_stack = pad64(input_stack)
         gt_mask = np.expand_dims(pad64(gt_mask), axis=0)
@@ -397,6 +430,9 @@ class MaskRefineModule:
 
     @staticmethod
     def build_input_stack(prev_image, curr_image, coarse_mask):
-        assert rank(prev_image) == 3 and rank(curr_image) == 3 and rank(coarse_mask) == 3
+        check_rank(prev_image, 3)
+        check_rank(curr_image, 3)
+        check_rank(coarse_mask, 3)
 
         return np.concatenate((prev_image, curr_image, coarse_mask), axis=2)
+

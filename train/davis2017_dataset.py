@@ -35,7 +35,7 @@ class Davis2017Dataset(utils.Dataset):
      * load_frame - loads a particular frame from a particular video from a particular subset of the data
 
     After loading images, you must call prepare() in order for the dataset to be
-    use properly. Once you call prepare(), you can load images/masks.
+    use properly. Once you call prepare(), you can load images/masks (into memory).
 
     Methods for Actually Loading Images:
      * load_image - returns the image tensor
@@ -44,8 +44,10 @@ class Davis2017Dataset(utils.Dataset):
           (call this before load_mask() )
 
     Generators:
-     * paired_generator - TODO finish writing documentation
+     * paired_generator - generates image pairs (with masks) for a Keras model
+     * sequential_generator - generates single images in sequence
     """
+    
     name = 'DAVIS2017'
     size = (480, 854)
 
@@ -66,7 +68,11 @@ class Davis2017Dataset(utils.Dataset):
     @property
     def all_masked(self) -> bool:
         """Whether all images in this dataset have a mask. This method is O(n),
-        although the coefficients are relatively small."""
+        although the coefficients are relatively small.
+        
+        It is not safe to use the current dataset as a training dataset if this
+        property is not true.
+        """
         for img_dict in self.image_info:
             if 'mask_path' not in img_dict:
                 return False
@@ -75,13 +81,15 @@ class Davis2017Dataset(utils.Dataset):
 
     def load_subset(self, *videos):
         """
-        Loads all the videos within this subset and video quality for the
-        videos given. If a list of videos is given, only those videos will be
-        loaded; otherwise, all available videos will be loaded.
-        :param videos: an iterable of strings, containing the names of the videos to load
+        Loads all the videos within this subset and video quality for the videos
+        given. If a list of videos is given, only those videos will be loaded;
+        otherwise, all available videos will be loaded.
+        
+        Args:
+            *videos: specific videos to load
         """
 
-        if len(videos) == 0:
+        if not len(videos):
             _, videos, _ = next(os.walk(self.build_absolute_path_to('images', '')))
 
         for vid in videos:
@@ -90,7 +98,9 @@ class Davis2017Dataset(utils.Dataset):
     def load_video(self, video: str):
         """
         Loads all the frames from a specific video.
-        :param video: name of the video to load from
+        
+        Args:
+            video: name of the video to load into dataset
         """
 
         _, _, frame_filenames = next(os.walk(self.build_absolute_path_to('images', video)))
@@ -100,11 +110,12 @@ class Davis2017Dataset(utils.Dataset):
 
     def load_frame(self, video, img_filename):
         """
-        Loads a single frame from the video specified.
-        :param video: name of the video to load from
-        :param img_filename: filename (with extension) for the image
-
-        img_filename and mask_filename should be identical except for their extensions.
+        Loads a single frame (as specified by the filename) from a specific video
+        into this dataset.
+        
+        Args:
+            video: name of the video to load frame from
+            img_filename: full filename (with no path) of the frame to load
         """
 
         img_id = img_filename[:-4]
@@ -117,6 +128,15 @@ class Davis2017Dataset(utils.Dataset):
             self.add_image(self.name, img_id, img_path_to_store, video=video)
 
     def load_image(self, image_id: int):
+        """
+        Load a specific image into memory.
+        
+        Args:
+            image_id: id of the frame to load
+
+        Returns:
+            image tensor
+        """
         info = self.image_info[image_id]
 
         if info['source'] != self.name:
@@ -134,7 +154,15 @@ class Davis2017Dataset(utils.Dataset):
         return image
 
     def has_mask(self, image_id: int):
-        """Returns whether the image/mask pair with image_id actually has a mask."""
+        """
+        Check whether the specified frame has a mask associated with it.
+        
+        Args:
+            image_id: id of the frame
+
+        Returns:
+            True if there's a mask; False otherwise
+        """
 
         return 'mask_path' in self.image_info[image_id]
 
@@ -142,6 +170,21 @@ class Davis2017Dataset(utils.Dataset):
         return self.load_float_mask(item)
 
     def load_mask(self, image_id: int):
+        """
+        Loads the mask and class information for a specified frame into memory.
+        
+        Args:
+            image_id: id of the frame
+
+        Returns:
+            (mask, labels) pair, where mask and labels are tensors
+            
+        The returned mask has shape [h, w, n], where n is the number of instances
+        in this frame.
+        
+        The returned labels tensor has shape [n], where n is the same as above.
+        """
+        
         info = self.image_info[image_id]
 
         if info['source'] != self.name:
@@ -159,6 +202,15 @@ class Davis2017Dataset(utils.Dataset):
         return mask == uniqs, uniqs
 
     def load_int_mask(self, image_id: int):
+        """
+        Loads the mask for a frame as an integer-based image.
+        
+        Args:
+            image_id: id of the frame
+
+        Returns:
+            TODO continue from here
+        """
         mask, ids = self.load_mask(image_id)
 
         return 255 * mask.astype(int), ids
@@ -264,13 +316,23 @@ class Davis2017Dataset(utils.Dataset):
             # add the image to the back of the queue
             id_pair_queue.appendleft(curr_id)
 
+    def sequential_generator(self, random=None):
+        # TODO implement
+        
+        pass
+
     def build_absolute_path_to(self, selection: str, video_and_filename: str) -> str:
         """
-        Builds and returns an absolute path to the file specified by filename, given a selection.
-        :param selection: either 'images', 'labels', or 'videos'
-        :param video_and_filename: name of the file
-        :return: full absolute path
+        Builds and returns an absolute path to a specified file, given a selection.
+        
+        Args:
+            selection: either 'images', 'labels', or 'videos'
+            video_and_filename: name of the file
+
+        Returns:
+            full absolute path to the file specified
         """
+        
         return path.join(self.data_dir,
                          Davis2017Dataset.build_relative_path(self.subset, self.quality, selection),
                          video_and_filename)
@@ -311,6 +373,17 @@ class Davis2017Dataset(utils.Dataset):
 
 
 def _load_predefined(root_dir, subset, quality) -> Davis2017Dataset:
+    """
+    Load one of the DAVIS-predefined subsets of the DAVIS 2017 dataset.
+    
+    Args:
+        root_dir: root directory of the dataset
+        subset: name of predefined subset (e.g. 'trainval')
+        quality: either '480p' or 'fullres'
+
+    Returns:
+        prepared dataset containing that subset of DAVIS
+    """
     dataset = Davis2017Dataset(subset, quality, data_dir=root_dir)
     dataset.load_subset()
     dataset.prepare()
