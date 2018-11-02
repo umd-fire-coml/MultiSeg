@@ -38,6 +38,39 @@ def _batchnorm():
     return BatchNormalization()
 
 
+# functional blocks
+def _down_block(input_layer, filters, n):
+    conv = _conv2d(filters, name=f'down{n}-conv1')(input_layer)
+    norm = _batchnorm()(conv)
+    conv = _conv2d(filters, name=f'down{n}-conv2')(norm)
+    norm = _batchnorm()(conv)
+    pool = _maxpool2d()(norm)
+    
+    return norm, pool
+
+
+def _level_block(input_layer, filters, n):
+    conv = _conv2d(filters, name=f'level{n}-conv1')(input_layer)
+    norm = _batchnorm()(conv)
+    conv = _conv2d(filters, name=f'level{n}-conv2')(norm)
+    norm = _batchnorm()(conv)
+    
+    return norm
+
+
+def _up_block(input_layer, residual_layer, filters, n):
+    up = _deconv2d(2 * filters, name=f'up{n}-upconv')(input_layer)
+    norm = _batchnorm()(up)
+    
+    merge = _concat()([residual_layer, norm])
+    conv = _conv2d(filters, name=f'up{n}-conv1')(merge)
+    norm = _batchnorm()(conv)
+    conv = _conv2d(filters, name=f'up{n}-conv2')(norm)
+    norm = _batchnorm()(conv)
+    
+    return norm
+
+
 # utils & other
 def rank(tensor):
     """
@@ -130,83 +163,36 @@ class MaskRefineSubnet:
         '''
 
         # block 1 (down-1)
-        conv1 = _conv2d(64, name='down1-conv1')(inputs)
-        norm1 = _batchnorm()(conv1)
-        conv1 = _conv2d(64, name='down1-conv2')(norm1)
-        norm1 = _batchnorm()(conv1)
-        pool1 = _maxpool2d()(norm1)
+        norm1, down_block1 = _down_block(inputs, 64, 1)
 
         # block 2 (down-2)
-        conv2 = _conv2d(128, name='down2-conv1')(pool1)
-        norm2 = _batchnorm()(conv2)
-        conv2 = _conv2d(128, name='down2-conv2')(norm2)
-        norm2 = _batchnorm()(conv2)
-        pool2 = _maxpool2d()(norm2)
+        norm2, down_block2 = _down_block(down_block1, 128, 2)
 
         # block 3 (down-3)
-        conv3 = _conv2d(256, name='down3-conv1')(pool2)
-        norm3 = _batchnorm()(conv3)
-        conv3 = _conv2d(256, name='down3-conv2')(norm3)
-        norm3 = _batchnorm()(conv3)
-        pool3 = _maxpool2d()(norm3)
+        norm3, down_block3 = _down_block(down_block2, 256, 3)
 
         # block 4 (down-4)
-        conv4 = _conv2d(512, name='down4-conv1')(pool3)
-        norm4 = _batchnorm()(conv4)
-        conv4 = _conv2d(512, name='down4-conv2')(norm4)
-        norm4 = _batchnorm()(conv4)
-        pool4 = _maxpool2d()(norm4)
+        norm4, down_block4 = _down_block(down_block3, 512, 4)
 
         # block 5 (5)
-        conv5 = _conv2d(1024, name='down5-conv1')(pool4)
-        norm5 = _batchnorm()(conv5)
-        conv5 = _conv2d(1024, name='down5-conv2')(norm5)
-        norm5 = _batchnorm()(conv5)
+        level_block5 = _level_block(down_block4, 1024, 5)
 
         # block 6 (up-4)
-        up6 = _deconv2d(1024, name='up4-upconv')(norm5)
-        norm6 = _batchnorm()(up6)
-
-        merge6 = _concat()([norm4, norm6])
-        conv6 = _conv2d(512, name='up4-conv1')(merge6)
-        norm6 = _batchnorm()(conv6)
-        conv6 = _conv2d(512, name='up4-conv2')(norm6)
-        norm6 = _batchnorm()(conv6)
+        up_block4 = _up_block(level_block5, norm4, 512, 4)
 
         # block 7 (up-3)
-        up7 = _deconv2d(512, name='up3-upconv')(norm6)
-        norm7 = _batchnorm()(up7)
-
-        merge7 = _concat()([conv3, norm7])
-        conv7 = _conv2d(256, name='up3-conv1')(merge7)
-        norm7 = _batchnorm()(conv7)
-        conv7 = _conv2d(256, name='up3-conv2')(norm7)
-        norm7 = _batchnorm()(conv7)
+        up_block3 = _up_block(up_block4, norm3, 256, 3)
 
         # block 8 (up-2)
-        up8 = _deconv2d(256, name='up2-upconv')(norm7)
-        norm8 = _batchnorm()(up8)
-
-        merge8 = _concat()([conv2, norm8])
-        conv8 = _conv2d(128, name='up2-conv1')(merge8)
-        norm8 = _batchnorm()(conv8)
-        conv8 = _conv2d(128, name='up2-conv2')(norm8)
-        norm8 = _batchnorm()(conv8)
+        up_block2 = _up_block(up_block3, norm2, 128, 2)
 
         # block 9 (up-1)
-        up9 = _deconv2d(128, name='up1-upconv')(norm8)
-        norm9 = _batchnorm()(up9)
-
-        merge9 = _concat()([conv1, norm9])
-        conv9 = _conv2d(64, name='up1-conv1')(merge9)
-        norm9 = _batchnorm()(conv9)
-        conv9 = _conv2d(64, name='up1-conv2')(norm9)
-        norm9 = _batchnorm()(conv9)
+        up_block1 = _up_block(up_block2, norm1, 64, 1)
 
         # block 10 (final outputs)
-        conv10 = _conv2d(1, kernel=1, activation='sigmoid', name='final_conv')(norm9)
+        final_conv = _conv2d(1, kernel=1, activation='sigmoid', name='final_conv')(up_block1)
 
-        model = Model(inputs=[inputs], outputs=[conv10])
+        model = Model(inputs=[inputs], outputs=[final_conv])
 
         # compile model
         metrics = ['binary_accuracy', 'binary_crossentropy']
