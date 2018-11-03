@@ -38,7 +38,7 @@ def _batchnorm():
     return BatchNormalization()
 
 
-# functional blocks
+# functional blocks  TODO double the depth of each block for experiment
 def _down_block(input_layer, filters, n):
     conv = _conv2d(filters, name=f'down{n}-conv1')(input_layer)
     norm = _batchnorm()(conv)
@@ -118,7 +118,7 @@ def mask_binary_crossentropy_loss(y_true, y_pred):
 
 
 def compute_mask_binary_cross_entropy_loos(y_true, y_pred):
-    binary_crossentropy = 0  # TODO finish implementing this in numpy
+    binary_crossentropy = -y_true * np.log(y_pred) + (1 - y_true) * np.log(1 - y_pred)
     
     return np.sum(binary_crossentropy) / np.sum(y_true)
 
@@ -176,7 +176,7 @@ class MaskRefineSubnet:
 
         # block 5 (5)
         level_block5 = _level_block(down_block4, 1024, 5)
-
+        
         # block 6 (up-4)
         up_block4 = _up_block(level_block5, norm4, 512, 4)
 
