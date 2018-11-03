@@ -26,7 +26,7 @@ def remove_mavish(root_dir):
         if f == 'mavish_remove.py':
             continue
         if f.startswith(rm_str) or rm_str in f.split('.') or rm_str in f.split('-'):
-            os.remove(path.join(root_dir, rm_str))
+            os.remove(path.join(root_dir, f))
     
     for sub_dir in dirs:
         remove_mavish(path.join(root_dir, sub_dir))
