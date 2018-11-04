@@ -155,8 +155,10 @@ elif cmd == COMMANDS['train']:
     train, val = splitd(dataset, 1 - val_split, val_split, shuffle=False)
     train_gen, val_gen = train.paired_generator(AUG_SEQ), val.paired_generator(AUG_SEQ)
 
-    with tf.device(f'/device:GPU:{device}'):
-        pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=optical_flow_path, verbose=print_debugs)
+    pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=optical_flow_path,
+                               verbose=print_debugs, gpu=device)
+    
+    with tf.device(f'/device:GPU:{device + 1}'):
         with pwc_net.graph.as_default():
             mr_subnet = MaskRefineSubnet()
             mr_module = MaskRefineModule(pwc_net, mr_subnet)
