@@ -38,12 +38,20 @@ def _batchnorm():
     return BatchNormalization()
 
 
-# functional blocks  TODO double the depth of each block for experiment
+# functional blocks
 def _down_block(input_layer, filters, n):
     conv = _conv2d(filters, name=f'down{n}-conv1')(input_layer)
     norm = _batchnorm()(conv)
+    
     conv = _conv2d(filters, name=f'down{n}-conv2')(norm)
     norm = _batchnorm()(conv)
+    
+    conv = _conv2d(filters, name=f'down{n}-conv3')(norm)
+    norm = _batchnorm()(conv)
+    
+    conv = _conv2d(filters, name=f'down{n}-conv4')(norm)
+    norm = _batchnorm()(conv)
+    
     pool = _maxpool2d()(norm)
     
     return norm, pool
@@ -52,7 +60,14 @@ def _down_block(input_layer, filters, n):
 def _level_block(input_layer, filters, n):
     conv = _conv2d(filters, name=f'level{n}-conv1')(input_layer)
     norm = _batchnorm()(conv)
+    
     conv = _conv2d(filters, name=f'level{n}-conv2')(norm)
+    norm = _batchnorm()(conv)
+
+    conv = _conv2d(filters, name=f'level{n}-conv3')(norm)
+    norm = _batchnorm()(conv)
+
+    conv = _conv2d(filters, name=f'level{n}-conv4')(norm)
     norm = _batchnorm()(conv)
     
     return norm
@@ -63,9 +78,17 @@ def _up_block(input_layer, residual_layer, filters, n):
     norm = _batchnorm()(up)
     
     merge = _concat()([residual_layer, norm])
+    
     conv = _conv2d(filters, name=f'up{n}-conv1')(merge)
     norm = _batchnorm()(conv)
+    
     conv = _conv2d(filters, name=f'up{n}-conv2')(norm)
+    norm = _batchnorm()(conv)
+
+    conv = _conv2d(filters, name=f'up{n}-conv3')(norm)
+    norm = _batchnorm()(conv)
+
+    conv = _conv2d(filters, name=f'up{n}-conv4')(norm)
     norm = _batchnorm()(conv)
     
     return norm
