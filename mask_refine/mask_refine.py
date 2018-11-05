@@ -1,5 +1,5 @@
 from datetime import datetime
-from keras.callbacks import TensorBoard, CSVLogger, ModelCheckpoint
+from keras.callbacks import TensorBoard, CSVLogger, ModelCheckpoint, ReduceLROnPlateau
 from keras.layers import Input, Conv2D, MaxPooling2D, Conv2DTranspose, Concatenate, BatchNormalization
 from keras.models import Model
 from keras.optimizers import Adam
@@ -242,6 +242,7 @@ class MaskRefineSubnet:
                 write_graph=True,
                 write_images=False
             ),
+            ReduceLROnPlateau(patience=5),
             ModelCheckpoint(
                 checkpoint_file,
                 verbose=0, save_weights_only=True
