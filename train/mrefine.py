@@ -1,27 +1,34 @@
 #!usr/bin/env python
+"""
+Mask Refine Training & Utilities Script
 
-################################################################################
-#                   Mask Refine Training Script & Utilities                    #
-#                                                                              #
-# Commands Available:                                                          #
-#   * train - run the training script for the mask refine module               #
-#   * augs - display the images of a dataset before & after augmentation       #
-#   * sizes - run each component of the module separately on fixed size inputs #
-#             to verify input and output sizes                                 #
-#                                                                              #
-################################################################################
+Commands Available:
+    * train - run the training script for the mask refine module
+    * augs - display the images of a dataset before and after augmentation
+             (requires a matplotlib backend that supports display)
+    * sizes - run each component of the module separate on fixed size inputs to
+              verify input and output tensor sizes/shapes
+    * infer - (WIP) predict an overall refined mask for an image pair from a
+              dataset (with augmentation, not with image segmentation integration)
+              
+More information about the command line arguments can be found by running the
+command `python -m train.mrefine -h` from the root directory of this project.
+"""
 
 import argparse
 import imgaug.augmenters as iaa
 import sys
 from warnings import warn
+import tensorflow as tf
 
 from train.davis2017_dataset import *
 from train.datautils import splitd
 
-# mapping from command description (key) to actual command line arg (value)
-# (right now, they're all the same, but this provides forward compatibility in
-# case we change the command names in future )
+"""
+Mapping from command description (key) to actual command line arguments (value).
+Right now, they're all the same, but this dictionary is to provide
+forward-compatibility in case they can in future.
+"""
 COMMANDS = {'train': 'train',
             'infer': 'infer',
             'augs': 'augs',
@@ -29,11 +36,11 @@ COMMANDS = {'train': 'train',
             }
 COMMANDS_LIST = list(COMMANDS.values())
 
-
-def load_data_peripherals(dpath):
-    dataset = get_trainval(dpath)
-
-    seq = iaa.Sequential([
+"""
+Sequence of imgaug augmentations applied to ground truth masks to transform
+them into input masks for (coarse) training.
+"""
+AUG_SEQ = iaa.Sequential([
         iaa.Multiply((0.25, 0.95)),
         iaa.ElasticTransformation(alpha=(2000, 10000), sigma=(20, 100)),
         iaa.GaussianBlur(sigma=(0, 20)),
@@ -43,17 +50,8 @@ def load_data_peripherals(dpath):
         iaa.Sometimes(0.25, iaa.AdditiveGaussianNoise(scale=(1, 15)))
     ])
 
-    return dataset, seq
 
-
-def warn_if_debugging_without_prints(command):
-    if not print_debugs:
-        warn(f'"{command}" is a debugging command, but debugs are not printed. (Use -p or -print-debugs to output.)')
-        response = input('Are you sure you want to continue? [y/n] ')
-        if 'y' not in response.strip().lower():
-            sys.exit()
-
-
+# PARSE COMMAND LINE ARGUMENTS
 parser = argparse.ArgumentParser()
 parser.add_argument('cmd', choices=COMMANDS_LIST,
                     default=COMMANDS['train'],
@@ -74,6 +72,7 @@ parser.add_argument('-v', '--validation-split', dest='val_split', type=float,
 parser.add_argument('-e', '-epochssteps', dest='epochssteps', type=int,
                     nargs=2, default=[200, 1000])
 parser.add_argument('-p', '--print-debugs', dest='print_debugs', action='store_true')
+parser.add_argument('--gpu', dest='device', type=int, nargs=1, default=[0])
 
 ############################################################################
 
@@ -87,6 +86,7 @@ val_split = args.val_split[0]
 epochs = args.epochssteps[0]
 steps = args.epochssteps[1]
 print_debugs = args.print_debugs
+device = args.device[0]
 
 print('Arguments given to trainmaskrefine command: ')
 print(f'\tcommand\t{cmd}')
@@ -97,20 +97,45 @@ print(f'\tv split\t{val_split}')
 print(f'\tepochs\t{epochs}')
 print(f'\tsteps\t{steps}')
 print(f'\tdebugs\t{print_debugs}')
+print(f'\tdevice\tGPU:{device}')
 print()
 
 
 def printd(string):
+    """Debugging print wrapper."""
+    
     if print_debugs:
         print(string)
+
+
+def warn_if_debugging_without_prints(command):
+    """
+    Warn if running a debugging command (e.g. sizes) without debugging statements.
+    If the user doesn't wish to continue, the system will exit.
+
+    Args:
+        command: name of the debugging command
+    """
+    
+    # if printing debugs, then it's fine
+    if print_debugs:
+        return
+    
+    # warn when not printing debugs
+    warn(f'\'{command}\' is a debugging command, but debugs are not printed. (Use -p or -print-debugs to output.)')
+    response = input('Are you sure you want to continue? [y/n] ')
+    if 'y' not in response.strip().lower():
+        sys.exit()
+    else:
+        printd('Continuing...')
 
 
 ############################################################################
 
 if cmd == COMMANDS['augs']:
-    dataset, seq = load_data_peripherals(dataset_path)
+    dataset = get_trainval(dataset_path)
 
-    gen = dataset.paired_generator(seq)
+    gen = dataset.paired_generator(AUG_SEQ)
 
     for X, y in gen:
         import matplotlib.pyplot as plt
@@ -125,38 +150,42 @@ elif cmd == COMMANDS['train']:
     from opt_flow.opt_flow import TensorFlowPWCNet
     from mask_refine.mask_refine import MaskRefineSubnet, MaskRefineModule
 
-    dataset, seq = load_data_peripherals(dataset_path)
+    dataset = get_trainval(dataset_path)
 
     train, val = splitd(dataset, 1 - val_split, val_split, shuffle=False)
-    train_gen, val_gen = train.paired_generator(seq), val.paired_generator(seq)
+    train_gen, val_gen = train.paired_generator(AUG_SEQ), val.paired_generator(AUG_SEQ)
 
-    pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=optical_flow_path, verbose=print_debugs)
-    with pwc_net.graph.as_default():
-        mr_subnet = MaskRefineSubnet()
-        mr_module = MaskRefineModule(pwc_net, mr_subnet)
-
-        if mask_refine_path is not None:
-            mr_subnet.load_weights(mask_refine_path)
-
-        printd('Starting MaskRefine training...')
-
-        hist = mr_module.train(train_gen, val_gen, epochs=epochs, steps_per_epoch=steps)
-        printd(hist)
+    pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=optical_flow_path,
+                               verbose=print_debugs, gpu=device)
+    
+    with tf.device(f'/device:GPU:{device + 1}'):
+        with pwc_net.graph.as_default():
+            mr_subnet = MaskRefineSubnet()
+            mr_module = MaskRefineModule(pwc_net, mr_subnet)
+    
+            if mask_refine_path is not None:
+                mr_subnet.load_weights(mask_refine_path)
+    
+            printd('Starting MaskRefine training...')
+    
+            mr_module.train(train_gen, val_gen, epochs=epochs, steps_per_epoch=steps)
 elif cmd == COMMANDS['infer']:
     from opt_flow.opt_flow import TensorFlowPWCNet
     from mask_refine.mask_refine import MaskRefineSubnet, MaskRefineModule
 
-    dataset, seq = load_data_peripherals(dataset_path)
-    imgs = dataset.paired_generator(seq)
+    dataset = get_trainval(dataset_path)
+    imgs = dataset.paired_generator(AUG_SEQ)
 
-    pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=optical_flow_path, verbose=print_debugs)
-    with pwc_net.graph.as_default():
-        mr_subnet = MaskRefineSubnet()
-        mr_module = MaskRefineModule(pwc_net, mr_subnet)
-
-        if mask_refine_path is not None:
-            mr_subnet.load_weights(mask_refine_path)
-    # TODO work in progress
+    with tf.device(f'/device:GPU:{device}'):
+        pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=optical_flow_path, verbose=print_debugs)
+        with pwc_net.graph.as_default():
+            mr_subnet = MaskRefineSubnet()
+            mr_module = MaskRefineModule(pwc_net, mr_subnet)
+    
+            if mask_refine_path is not None:
+                mr_subnet.load_weights(mask_refine_path)
+        
+        # TODO work in progress
 
 elif cmd == COMMANDS['sizes']:
     warn_if_debugging_without_prints("sizes")
@@ -165,32 +194,33 @@ elif cmd == COMMANDS['sizes']:
     from mask_refine.mask_refine import MaskRefineSubnet, MaskRefineModule
     import numpy as np
 
-    dataset, seq = load_data_peripherals(dataset_path)
+    dataset = get_trainval(dataset_path)
 
-    pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=optical_flow_path, verbose=print_debugs)
-    with pwc_net.graph.as_default():
-        mr_subnet = MaskRefineSubnet()
-        mr_module = MaskRefineModule(pwc_net, mr_subnet)
-
-        input_stack = np.empty((1, 480, 854, 6))
-        output = mr_subnet.predict(input_stack)
-
-        printd('INPUT/OUTPUT INFERENCE TESTS')
-        printd('MaskRefineSubnet:')
-        printd(f'Input Shape:\t{input_stack.shape}')
-        printd(f'Output Shape:\t{output.shape}')
-
-        input_stack = np.empty((480, 854, 6))
-        output = pwc_net.infer_from_image_stack(input_stack)
-
-        printd('PWCNet:')
-        printd(f'Input Shape:\t{input_stack.shape}')
-        printd(f'Output Shape:\t{output.shape}')
-
-        input_stack = np.empty((480, 854, 7))
-        output = mr_module.refine_mask(input_stack)
-
-        printd('Entire Module:')
-        printd(f'Input Shape:\t{input_stack.shape}')
-        printd(f'Output Shape:\t{output.shape}')
+    with tf.device(f'/device:GPU:{device}'):
+        pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=optical_flow_path, verbose=print_debugs)
+        with pwc_net.graph.as_default():
+            mr_subnet = MaskRefineSubnet()
+            mr_module = MaskRefineModule(pwc_net, mr_subnet)
+    
+            input_stack = np.empty((1, 480, 854, 6))
+            output = mr_subnet.predict(input_stack)
+    
+            printd('INPUT/OUTPUT INFERENCE TESTS')
+            printd('MaskRefineSubnet:')
+            printd(f'Input Shape:\t{input_stack.shape}')
+            printd(f'Output Shape:\t{output.shape}')
+    
+            input_stack = np.empty((480, 854, 6))
+            output = pwc_net.infer_from_image_stack(input_stack)
+    
+            printd('PWCNet:')
+            printd(f'Input Shape:\t{input_stack.shape}')
+            printd(f'Output Shape:\t{output.shape}')
+    
+            input_stack = np.empty((480, 854, 7))
+            output = mr_module.refine_mask(input_stack)
+    
+            printd('Entire Module:')
+            printd(f'Input Shape:\t{input_stack.shape}')
+            printd(f'Output Shape:\t{output.shape}')
 

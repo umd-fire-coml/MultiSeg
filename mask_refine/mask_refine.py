@@ -1,11 +1,14 @@
 from datetime import datetime
-import keras.backend as tf
-from keras.callbacks import TensorBoard, CSVLogger, ModelCheckpoint
-from keras.layers import Input, Conv2D, Dropout, MaxPooling2D, Conv2DTranspose, Concatenate, BatchNormalization
+from keras.callbacks import TensorBoard, CSVLogger, ModelCheckpoint, ReduceLROnPlateau
+from keras.layers import Input, Conv2D, MaxPooling2D, Conv2DTranspose, Concatenate, BatchNormalization
 from keras.models import Model
 from keras.optimizers import Adam
+from os import path
 import math
 import numpy as np
+import os
+import tensorflow as tf
+import tensorflow.keras.backend as K
 
 from opt_flow.opt_flow import OpticalFlowNetwork
 
@@ -13,34 +16,117 @@ __all__ = ['MaskRefineSubnet', 'MaskRefineModule']
 
 
 # functional layers
-def _conv2d(filters, kernel=3, activation='relu', kernel_initializer='he_normal', name=None):
+def _conv2d(filters, kernel=3, activation='relu', kernel_initializer='he_normal', **kwargs):
     return Conv2D(filters, kernel, activation=activation, padding='same',
-                  kernel_initializer=kernel_initializer, name=name)
+                  kernel_initializer=kernel_initializer, **kwargs)
 
 
-def _deconv2d(filters, activation=None, name=None):
+def _deconv2d(filters, activation=None, **kwargs):
     return Conv2DTranspose(filters, (2, 2), strides=(2, 2),
-                           activation=activation, name=name)
+                           activation=activation, **kwargs)
 
 
-def _maxpool2d(pool_size=(2, 2), name=None):
-    return MaxPooling2D(pool_size=pool_size, name=name)
+def _maxpool2d(pool_size=(2, 2), **kwargs):
+    return MaxPooling2D(pool_size=pool_size, **kwargs)
 
 
-def _concat(axis=3, name=None):
-    return Concatenate(axis=axis, name=name)
+def _concat(axis=3, **kwargs):
+    return Concatenate(axis=axis, **kwargs)
 
 
 def _batchnorm():
     return BatchNormalization()
 
 
+# functional blocks
+def _down_block(input_layer, filters, n):
+    conv = _conv2d(filters, name=f'down{n}-conv1')(input_layer)
+    norm = _batchnorm()(conv)
+    
+    conv = _conv2d(filters, name=f'down{n}-conv2')(norm)
+    norm = _batchnorm()(conv)
+    
+    conv = _conv2d(filters, name=f'down{n}-conv3')(norm)
+    norm = _batchnorm()(conv)
+    
+    conv = _conv2d(filters, name=f'down{n}-conv4')(norm)
+    norm = _batchnorm()(conv)
+    
+    pool = _maxpool2d()(norm)
+    
+    return norm, pool
+
+
+def _level_block(input_layer, filters, n):
+    conv = _conv2d(filters, name=f'level{n}-conv1')(input_layer)
+    norm = _batchnorm()(conv)
+    
+    conv = _conv2d(filters, name=f'level{n}-conv2')(norm)
+    norm = _batchnorm()(conv)
+
+    conv = _conv2d(filters, name=f'level{n}-conv3')(norm)
+    norm = _batchnorm()(conv)
+
+    conv = _conv2d(filters, name=f'level{n}-conv4')(norm)
+    norm = _batchnorm()(conv)
+    
+    return norm
+
+
+def _up_block(input_layer, residual_layer, filters, n):
+    up = _deconv2d(2 * filters, name=f'up{n}-upconv')(input_layer)
+    norm = _batchnorm()(up)
+    
+    merge = _concat()([residual_layer, norm])
+    
+    conv = _conv2d(filters, name=f'up{n}-conv1')(merge)
+    norm = _batchnorm()(conv)
+    
+    conv = _conv2d(filters, name=f'up{n}-conv2')(norm)
+    norm = _batchnorm()(conv)
+
+    conv = _conv2d(filters, name=f'up{n}-conv3')(norm)
+    norm = _batchnorm()(conv)
+
+    conv = _conv2d(filters, name=f'up{n}-conv4')(norm)
+    norm = _batchnorm()(conv)
+    
+    return norm
+
+
 # utils & other
 def rank(tensor):
+    """
+    Returns the rank (number of dimensions) of a tensor. Equivalent to
+    len(tensor.shape).
+    
+    Args:
+        tensor: tensor to check rank of
+
+    Returns:
+        rank (ndims) of the given tensor
+    """
+    
     return len(tensor.shape)
 
 
+def check_rank(tensor, corr_rank):
+    if rank(tensor) != corr_rank:
+        raise ValueError(f'input must have rank {corr_rank} (provided: {rank(tensor)})')
+
+
 def pad64(tensor):
+    """
+    Pads an image with zeros to the next largest multiple of 64, centering the
+    image as much as possible.
+    
+    Args:
+        tensor: image to pad
+
+    Returns:
+        padded image with dimensions that are multiples of 64
+
+    """
     # pads images with zeros to the next largest multiple of 64 (center fix)
     h_, w_ = math.ceil(tensor.shape[0] / 64) * 64, math.ceil(tensor.shape[1] / 64) * 64
     h_pad, w_pad = h_ - tensor.shape[0], w_ - tensor.shape[1]
@@ -49,9 +135,15 @@ def pad64(tensor):
                            (0, 0)), mode='constant')
 
 
-def edge_focused_loss(y_true, y_pred):
-    # TODO calculate an edge-focused loss
-    pass
+def mask_binary_crossentropy_loss(y_true, y_pred):
+    return tf.divide(tf.reduce_sum(K.binary_crossentropy(y_true, y_pred)),
+                     tf.reduce_sum(y_true))
+
+
+def compute_mask_binary_cross_entropy_loos(y_true, y_pred):
+    binary_crossentropy = -y_true * np.log(y_pred) + (1 - y_true) * np.log(1 - y_pred)
+    
+    return np.sum(binary_crossentropy) / np.sum(y_true)
 
 
 # TODO check tensor data types
@@ -67,99 +159,63 @@ class MaskRefineSubnet:
         if weights_path is not None:
             self.load_weights(weights_path)
 
-    def _build_model(self, loss='binary_crossentropy'):
+    def _build_model(self, loss=mask_binary_crossentropy_loss):
         """
-        Builds the U-Net for the mask propagation network, 5 levels deep.
-        :param optimizer: optimizer object to use to train
-        :param loss: loss function (as string) to use to train
+        Builds a U-Net for the mask refine network, 5 levels deep. Adapted from
+        the original U-Net paper. Optimizes using adam schedule.
+        
+        Args:
+            loss: loss function to use
 
-        Adapted by Shivam, Derek, and Tim from https://github.com/ShawDa/unet-rgb/blob/master/unet.py. Adaptations
-        include a binary focal loss, transposed convolutions, and varied activations.
+        Batch normalization is applied after every convolutional layer (except
+        the very last layer). No (spatial) dropout is used. We elect to use 2x2
+        deconvolutions instead of 2x2 upsampling.
         """
 
-        optimizer = Adam(lr=1e-4)
+        optimizer = Adam()
 
         inputs = Input((None, None, 6))
+        
+        '''
+        Layers are named as follows:
+            * first part is the block name (either 'down' or 'up') followed by
+              depth of the level
+            * followed by a hyphen
+            * last part is the type of layer, following by the occurrence of that
+              layer in that level
+        '''
 
         # block 1 (down-1)
-        conv1 = _conv2d(64)(inputs)
-        norm1 = _batchnorm()(conv1)
-        conv1 = _conv2d(64)(norm1)
-        norm1 = _batchnorm()(conv1)
-        pool1 = _maxpool2d()(norm1)
+        norm1, down_block1 = _down_block(inputs, 64, 1)
 
         # block 2 (down-2)
-        conv2 = _conv2d(128)(pool1)
-        norm2 = _batchnorm()(conv2)
-        conv2 = _conv2d(128)(norm2)
-        norm2 = _batchnorm()(conv2)
-        pool2 = _maxpool2d()(norm2)
+        norm2, down_block2 = _down_block(down_block1, 128, 2)
 
         # block 3 (down-3)
-        conv3 = _conv2d(256)(pool2)
-        norm3 = _batchnorm()(conv3)
-        conv3 = _conv2d(256)(norm3)
-        norm3 = _batchnorm()(conv3)
-        pool3 = _maxpool2d()(norm3)
+        norm3, down_block3 = _down_block(down_block2, 256, 3)
 
         # block 4 (down-4)
-        conv4 = _conv2d(512)(pool3)
-        norm4 = _batchnorm()(conv4)
-        conv4 = _conv2d(512)(norm4)
-        norm4 = _batchnorm()(conv4)
-        drop4 = Dropout(0.5)(norm4)
-        pool4 = _maxpool2d()(drop4)
+        norm4, down_block4 = _down_block(down_block3, 512, 4)
 
         # block 5 (5)
-        conv5 = _conv2d(1024)(pool4)
-        norm5 = _batchnorm()(conv5)
-        conv5 = _conv2d(1024)(norm5)
-        norm5 = _batchnorm()(conv5)
-
+        level_block5 = _level_block(down_block4, 1024, 5)
+        
         # block 6 (up-4)
-        up6 = _deconv2d(1024)(norm5)
-        norm6 = _batchnorm()(up6)
-
-        merge6 = _concat()([drop4, norm6])
-        conv6 = _conv2d(512)(merge6)
-        norm6 = _batchnorm()(conv6)
-        conv6 = _conv2d(512)(norm6)
-        norm6 = _batchnorm()(conv6)
+        up_block4 = _up_block(level_block5, norm4, 512, 4)
 
         # block 7 (up-3)
-        up7 = _deconv2d(512)(norm6)
-        norm7 = _batchnorm()(up7)
-
-        merge7 = _concat()([conv3, norm7])
-        conv7 = _conv2d(256)(merge7)
-        norm7 = _batchnorm()(conv7)
-        conv7 = _conv2d(256)(norm7)
-        norm7 = _batchnorm()(conv7)
+        up_block3 = _up_block(up_block4, norm3, 256, 3)
 
         # block 8 (up-2)
-        up8 = _deconv2d(256)(norm7)
-        norm8 = _batchnorm()(up8)
-
-        merge8 = _concat()([conv2, norm8])
-        conv8 = _conv2d(128)(merge8)
-        norm8 = _batchnorm()(conv8)
-        conv8 = _conv2d(128)(norm8)
-        norm8 = _batchnorm()(conv8)
+        up_block2 = _up_block(up_block3, norm2, 128, 2)
 
         # block 9 (up-1)
-        up9 = _deconv2d(128)(norm8)
-        norm9 = _batchnorm()(up9)
-
-        merge9 = _concat()([conv1, norm9])
-        conv9 = _conv2d(64)(merge9)
-        norm9 = _batchnorm()(conv9)
-        conv9 = _conv2d(64)(norm9)
-        norm9 = _batchnorm()(conv9)
+        up_block1 = _up_block(up_block2, norm1, 64, 1)
 
         # block 10 (final outputs)
-        conv10 = _conv2d(1, kernel=1, activation='sigmoid')(norm9)
+        final_conv = _conv2d(1, kernel=1, activation='sigmoid', name='final_conv')(up_block1)
 
-        model = Model(inputs=[inputs], outputs=[conv10])
+        model = Model(inputs=[inputs], outputs=[final_conv])
 
         # compile model
         metrics = ['binary_accuracy', 'binary_crossentropy']
@@ -168,22 +224,50 @@ class MaskRefineSubnet:
         self._model = model
 
     def load_weights(self, weights_path):
-        """Load pretrained weights."""
+        """
+        Load pretrained weights for the U-Net (in hdf5 format).
+        
+        Args:
+            weights_path: path with filename of the weights binary
+        """
 
         self._model.load_weights(weights_path)
 
-    def train(self, train_generator, val_generator, epochs=30, steps_per_epoch=500, val_steps_per_epoch=1000):
-        history_file = "logs/mask_refine_history_" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
+    def train(self, train_generator, val_generator, epochs=30, steps_per_epoch=500, val_steps_per_epoch=100):
+        """
+        Trains the U-Net using inputs and ground truth from the given generators.
+        
+        Args:
+            train_generator: generate X, y input pairs for training
+            val_generator: generate X, y input pairs for validation
+            epochs: number of epochs to train
+            steps_per_epoch: number of image pairs + masks per epoch for training
+            val_steps_per_epoch: number of image pairs + mask per epoch for validation
 
+        Returns: Keras history object
+        """
+        
+        # create the log directory for this training session
+        date_and_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        log_directory = f'./logs/mr_training_{date_and_time}/'
+        if not path.exists(log_directory):
+            os.mkdir(log_directory)
+        
+        # create the file names for the training files for this session
+        checkpoint_file = path.join(log_directory, 'davis_unet_weights__{epoch:02d}__{val_loss:.2f}.h5')
+        history_file = path.join(log_directory, f'mr_history_{date_and_time}.csv')
+
+        # training callbacks
         callbacks = [
             TensorBoard(
-                log_dir="logs",
+                log_dir=log_directory,
                 histogram_freq=0,
                 write_graph=True,
                 write_images=False
             ),
+            ReduceLROnPlateau(patience=5),
             ModelCheckpoint(
-                "logs/davis_unet_weights__{epoch:02d}__{val_loss:.2f}.h5",
+                checkpoint_file,
                 verbose=0, save_weights_only=True
             ),
             CSVLogger(history_file)
@@ -201,17 +285,23 @@ class MaskRefineSubnet:
         return history
 
     def predict(self, input_stack):
-        """Run inference for a set of inputs (batch size of 1).
-        :param input_stack: current image, mask, optical flow of shape [1, h, w, 6]
-        :return: refined mask of shape [1, h, w, 1]
-
-        input stack (concatenated along the 3rd axis (axis=2)):
-        IMAGE [h,w,3]
-        MASK  [h,w,1]
-        FLOW  [h,w,2]
         """
+        Run inference for a set of inputs (batch size must be 1).
+        
+        Args:
+            input_stack: inputs to mask refine model (see below)
 
-        assert rank(input_stack) == 4
+        Returns:
+            refined mask of shape [1, h, w, 1]
+        
+        Input stack of shape [1, h, w, 6]
+            IMAGE [1, h, w, 3]
+            MASK  [1, h, w, 1]
+            FLOW  [1, h, w, 2]
+        These are all concatenated along axis=2 (3rd axis).
+        """
+        
+        check_rank(input_stack, 4)
 
         return self._model.predict(input_stack, batch_size=1)
 
@@ -225,8 +315,10 @@ class MaskRefineSubnet:
         :param flow_field: optical flow tensor of shape [h, w, 2]
         :return: input stack of shape [1, h, w, 6]
         """
-
-        assert rank(image) == 3 and rank(mask) == 3 and rank(flow_field) == 3
+        
+        check_rank(image, 3)
+        check_rank(mask, 3)
+        check_rank(flow_field, 3)
 
         return np.expand_dims(np.concatenate((image, mask, flow_field), axis=2), axis=0)
 
@@ -245,16 +337,31 @@ class MaskRefineModule:
         self.mask_refine_subnet = mask_refine_subnet
 
     def train(self, train_generator, val_generator, **kwargs):
+        """
+        
+        Args:
+            train_generator:
+            val_generator:
+            **kwargs:
+
+        Returns:
+
+        """
+        
+        # define a wrapper generator that applies optical flow to some of the
+        # inputs and creates a new input stack and ground truth
         def with_optical_flow(gen):
             while True:
                 X, y = next(gen)
+                
+                check_rank(X, 3)
+                check_rank(y, 3)
 
-                assert rank(X) == 3 and rank(y) == 3
-
-                # pad image and mask to multiples of 64 TODO: make it also scale back (scikit-learn?)
+                # pad image and mask to multiples of 64
                 X = pad64(X)
                 y = pad64(y)
 
+                # generate flow field and build new input stack
                 flow_field = self.optical_flow_model.infer_from_image_stack(X[..., :6])
                 Xnew = MaskRefineSubnet.build_input_stack(
                     X[..., 3:6],
@@ -262,7 +369,7 @@ class MaskRefineModule:
                     flow_field)
 
                 ynew = np.expand_dims(y, axis=0)
-
+                
                 assert rank(Xnew) == 4 and rank(ynew) == 4
 
                 yield Xnew, ynew
@@ -285,9 +392,9 @@ class MaskRefineModule:
         COARSE MASK [h, w, 1]
         """
 
-        assert rank(input_stack) == 3
+        check_rank(input_stack, 3)
 
-        input_stack = pad64(input_stack)
+        input_stack = pad64(input_stack)  # TODO also make scale back to orig size
 
         flow_field = self.optical_flow_model.infer_from_image_stack(input_stack[..., :6])
         subnet_input_stack = MaskRefineSubnet.build_input_stack(input_stack[..., 3:6],
@@ -311,8 +418,8 @@ class MaskRefineModule:
         COARSE MASK [h, w, 1]
         """
 
-        assert rank(input_stack) == 3
-        assert rank(gt_mask) == 3
+        check_rank(input_stack, 3)
+        check_rank(gt_mask, 3)
 
         input_stack = pad64(input_stack)
         gt_mask = np.expand_dims(pad64(gt_mask), axis=0)
@@ -333,6 +440,9 @@ class MaskRefineModule:
 
     @staticmethod
     def build_input_stack(prev_image, curr_image, coarse_mask):
-        assert rank(prev_image) == 3 and rank(curr_image) == 3 and rank(coarse_mask) == 3
+        check_rank(prev_image, 3)
+        check_rank(curr_image, 3)
+        check_rank(coarse_mask, 3)
 
         return np.concatenate((prev_image, curr_image, coarse_mask), axis=2)
+
