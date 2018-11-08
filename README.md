@@ -8,12 +8,12 @@ and still images and track (identify) objects over consecutive frames. There are
 3 major modules:
 * Image Segmentation Module
   * Mask R-CNN
-* Identification Module
-  * Triplet Network
-  * FAISS Database
 * [Mask Refine Module](mask_refine/README.md)
   * PWC-Net
   * U-Net
+* Identification Module
+  * Triplet Network
+  * FAISS Database
 
 ![MultiSeg Network Diagram](MultiSegModel.png)
 
