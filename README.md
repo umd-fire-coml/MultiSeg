@@ -8,12 +8,12 @@ and still images and track (identify) objects over consecutive frames. There are
 3 major modules:
 * Image Segmentation Module
   * Mask R-CNN
-* Identification Module
-  * Triplet Network
-  * FAISS Database
 * [Mask Refine Module](mask_refine/README.md)
   * PWC-Net
   * U-Net
+* Identification Module
+  * Triplet Network
+  * FAISS Database
 
 ![MultiSeg Network Diagram](MultiSegModel.png)
 
@@ -106,8 +106,15 @@ Notebook: [Mask Refine Demo Notebook](demo_mask_refine.ipynb)
 Dataset: DAVIS 2017
 
 #### Instance Identification
-See separate repository. 
+See separate repository (linked under the instance_id directory). In the future, when this module is more mature, it will be integrated into the current repository.
 
-## Examples
+## Future Work
+* integrate ImageSeg and MaskRefine
+* develop triplet network in keras
+* refine MaskRefine using new loss function
+* integrate all 3 modules
+* evaluation & metrics
+
+## Samples
 ![Coarse Mask Refine Module Outputs](mask_refine/example.png)
 Coarse Mask Refine Inputs and Outputs
