@@ -106,8 +106,15 @@ Notebook: [Mask Refine Demo Notebook](demo_mask_refine.ipynb)
 Dataset: DAVIS 2017
 
 #### Instance Identification
-See separate repository. 
+See separate repository (linked under the instance_id directory). In the future, when this module is more mature, it will be integrated into the current repository.
 
-## Examples
+## Future Work
+* integrate ImageSeg and MaskRefine
+* develop triplet network in keras
+* refine MaskRefine using new loss function
+* integrate all 3 modules
+* evaluation & metrics
+
+## Samples
 ![Coarse Mask Refine Module Outputs](mask_refine/example.png)
 Coarse Mask Refine Inputs and Outputs
