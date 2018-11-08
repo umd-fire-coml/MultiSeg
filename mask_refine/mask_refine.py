@@ -140,7 +140,7 @@ def mask_binary_crossentropy_loss(y_true, y_pred):
                      tf.reduce_sum(y_true))
 
 
-def compute_mask_binary_cross_entropy_loos(y_true, y_pred):
+def compute_mask_binary_cross_entropy_loss(y_true, y_pred):
     binary_crossentropy = -y_true * np.log(y_pred) + (1 - y_true) * np.log(1 - y_pred)
     
     return np.sum(binary_crossentropy) / np.sum(y_true)
@@ -159,7 +159,7 @@ class MaskRefineSubnet:
         if weights_path is not None:
             self.load_weights(weights_path)
 
-    def _build_model(self, loss=mask_binary_crossentropy_loss):
+    def _build_model(self):
         """
         Builds a U-Net for the mask refine network, 5 levels deep. Adapted from
         the original U-Net paper. Optimizes using adam schedule.
@@ -171,8 +171,6 @@ class MaskRefineSubnet:
         the very last layer). No (spatial) dropout is used. We elect to use 2x2
         deconvolutions instead of 2x2 upsampling.
         """
-
-        optimizer = Adam()
 
         inputs = Input((None, None, 6))
         
@@ -218,6 +216,8 @@ class MaskRefineSubnet:
         model = Model(inputs=[inputs], outputs=[final_conv])
 
         # compile model
+        optimizer = Adam()
+        loss = mask_binary_crossentropy_loss
         metrics = ['binary_accuracy', 'binary_crossentropy']
         model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 

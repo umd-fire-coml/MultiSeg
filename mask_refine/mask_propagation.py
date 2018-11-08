@@ -5,6 +5,7 @@ See mask_propagation_training_davis.py for details and an example use.
 """
 import cv2
 from datetime import datetime
+from deprecated import deprecated
 from keras.callbacks import TensorBoard, CSVLogger, ModelCheckpoint
 from keras.layers import Input, Conv2D, Dropout, MaxPooling2D, Conv2DTranspose, Concatenate
 from keras.models import Model
@@ -16,6 +17,7 @@ from skimage import io
 __all__ = ['pad_image', 'plot_prediction', 'MaskPropagation']
 
 
+@deprecated(reason='maskprop is a deprecated module')
 def pad_image(image):
     """
     Pads images to be multiples of 8. (Do before feeding into U-Net.)
@@ -26,6 +28,7 @@ def pad_image(image):
     return cv2.copyMakeBorder(image, 0, 0, 5, 5, cv2.BORDER_CONSTANT, value=0)
 
 
+@deprecated(reason='maskprop is a deprecated module')
 def plot_prediction(frame_pair, pred_mask):
     """
     :param frame_pair:
@@ -77,6 +80,7 @@ def binary_focal_loss(y_true, y_pred, gamma=2):
     return K.sum(focal_losses)
 
 
+@deprecated(reason='maskprop is a deprecated module')
 def contrastive_loss(y_true, y_pred, margin=1):
     """
     Computes the contrastive loss function defined by: (1-y_true)D^2 + y_true*(relu(m-D))^2,
@@ -96,6 +100,7 @@ def contrastive_loss(y_true, y_pred, margin=1):
     return K.sum(c_loss)
 
 
+@deprecated(reason='maskprop is a deprecated module')
 class MaskPropagation:
     def __init__(self, weights_path=None):
         self._build_model()

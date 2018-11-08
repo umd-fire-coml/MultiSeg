@@ -1,6 +1,11 @@
-# TODO make integrated model here
-import keras.models as km
+"""
+MultiSeg Model
+"""
+
 import keras.layers as kl
+import keras.models as km
+
+import opt_flow.opt_flow as of
 
 
 class MultiSeg(object):
@@ -15,7 +20,13 @@ class MultiSeg(object):
     def _build_model(self) -> km.Model:
         
         prev_image = kl.Input((None, None, 3), )
-        curr_image = input
+        curr_image = kl.Input((None, None, 3), )
+        
+        flow_field = of.TensorFlowPWCNet()
+        
+        if self.mode == 'train':
+            # TOOD add training layers for
+            pass
         
         return km.Model(inputs=[], outputs=[])
 
