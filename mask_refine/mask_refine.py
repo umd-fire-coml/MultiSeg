@@ -164,7 +164,7 @@ class MaskRefineSubnet:
         """
         
         input_image = Input((None, None, 3))
-        input_masks = TimeDistributed(Input((None, None, 1)))
+        input_masks = Input((None, None, 1))
         input_flow_field = Input((None, None, 2))
         
         inputs = _concat()([input_image, input_masks, input_flow_field])
