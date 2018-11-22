@@ -144,8 +144,7 @@ class MaskRefineSubnet:
     this subnet does not handle running the optical flow network.)
     """
 
-    def __init__(self, optical_flow_model: OpticalFlowNetwork,
-                 weights_path='./mask_refine/davis_unet_weights.h5'):
+    def __init__(self, optical_flow_model: OpticalFlowNetwork):
         self._build_model()
 
         self.optical_flow_model = optical_flow_model
@@ -218,7 +217,7 @@ class MaskRefineSubnet:
 
         self._model = model
 
-    def load_weights(self, weights_path):
+    def load_weights(self, weights_path='./mask_refine/davis_unet_weights.h5'):
         """
         Load pre-trained weights for the U-Net (in hdf5 format).
         
