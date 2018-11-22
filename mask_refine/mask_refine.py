@@ -149,9 +149,6 @@ class MaskRefineSubnet:
 
         self.optical_flow_model = optical_flow_model
 
-        if weights_path is not None:
-            self.load_weights(weights_path)
-
     def _build_model(self):
         """
         Builds a U-Net for the mask refine network, 5 levels deep. Adapted from
