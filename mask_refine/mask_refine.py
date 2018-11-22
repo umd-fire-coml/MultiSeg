@@ -1,6 +1,6 @@
 from datetime import datetime
 from keras.callbacks import TensorBoard, CSVLogger, ModelCheckpoint, ReduceLROnPlateau
-from keras.layers import Input, Conv2D, MaxPooling2D, Conv2DTranspose, Concatenate, BatchNormalization
+from keras.layers import Input, Conv2D, MaxPooling2D, Conv2DTranspose, Concatenate, BatchNormalization, TimeDistributed
 from keras.models import Model
 from keras.optimizers import Adam
 from os import path
@@ -10,9 +10,11 @@ import os
 import tensorflow as tf
 import tensorflow.keras.backend as K
 
+from typing import Union, Iterable
+
 from opt_flow.opt_flow import OpticalFlowNetwork
 
-__all__ = ['MaskRefineSubnet', 'MaskRefineModule']
+__all__ = ['MaskRefineSubnet']
 
 
 # functional layers
@@ -39,41 +41,34 @@ def _batchnorm():
 
 
 # functional blocks
-def _down_block(input_layer, filters, n):
+def _down_block(input_layer, filters, n, convs=4):
+    assert convs > 0
+    
     conv = _conv2d(filters, name=f'down{n}-conv1')(input_layer)
     norm = _batchnorm()(conv)
     
-    conv = _conv2d(filters, name=f'down{n}-conv2')(norm)
-    norm = _batchnorm()(conv)
-    
-    conv = _conv2d(filters, name=f'down{n}-conv3')(norm)
-    norm = _batchnorm()(conv)
-    
-    conv = _conv2d(filters, name=f'down{n}-conv4')(norm)
-    norm = _batchnorm()(conv)
+    for i in range(2, convs + 1):
+        conv = _conv2d(filters, name=f'down{n}-conv{i}')(norm)
+        norm = _batchnorm()(conv)
     
     pool = _maxpool2d()(norm)
     
     return norm, pool
 
 
-def _level_block(input_layer, filters, n):
-    conv = _conv2d(filters, name=f'level{n}-conv1')(input_layer)
-    norm = _batchnorm()(conv)
+def _level_block(input_layer, filters, n, convs=4):
+    assert convs > 0
     
-    conv = _conv2d(filters, name=f'level{n}-conv2')(norm)
-    norm = _batchnorm()(conv)
-
-    conv = _conv2d(filters, name=f'level{n}-conv3')(norm)
-    norm = _batchnorm()(conv)
-
-    conv = _conv2d(filters, name=f'level{n}-conv4')(norm)
-    norm = _batchnorm()(conv)
+    norm = input_layer
+    
+    for i in range(1, convs + 1):
+        conv = _conv2d(filters, name=f'level{n}-conv{i}')(norm)
+        norm = _batchnorm()(conv)
     
     return norm
 
 
-def _up_block(input_layer, residual_layer, filters, n):
+def _up_block(input_layer, residual_layer, filters, n, convs=4):
     up = _deconv2d(2 * filters, name=f'up{n}-upconv')(input_layer)
     norm = _batchnorm()(up)
     
@@ -82,14 +77,9 @@ def _up_block(input_layer, residual_layer, filters, n):
     conv = _conv2d(filters, name=f'up{n}-conv1')(merge)
     norm = _batchnorm()(conv)
     
-    conv = _conv2d(filters, name=f'up{n}-conv2')(norm)
-    norm = _batchnorm()(conv)
-
-    conv = _conv2d(filters, name=f'up{n}-conv3')(norm)
-    norm = _batchnorm()(conv)
-
-    conv = _conv2d(filters, name=f'up{n}-conv4')(norm)
-    norm = _batchnorm()(conv)
+    for i in range(2, convs + 1):
+        conv = _conv2d(filters, name=f'up{n}-conv{i}')(norm)
+        norm = _batchnorm()(conv)
     
     return norm
 
@@ -110,9 +100,10 @@ def rank(tensor):
     return len(tensor.shape)
 
 
-def check_rank(tensor, corr_rank):
-    if rank(tensor) != corr_rank:
-        raise ValueError(f'input must have rank {corr_rank} (provided: {rank(tensor)})')
+def check_rank(*tensors: Union[Iterable[np.ndarray], np.ndarray], c_rank):
+    for tensor in tensors:
+        if rank(tensor) != c_rank:
+            raise ValueError(f'input must have rank {c_rank} (provided: {rank(tensor)})')
 
 
 def pad64(tensor):
@@ -146,15 +137,18 @@ def compute_mask_binary_cross_entropy_loss(y_true, y_pred):
     return np.sum(binary_crossentropy) / np.sum(y_true)
 
 
-# TODO check tensor data types
+# TODO check tensor data types (and ranges)
 class MaskRefineSubnet:
     """
     Model for just the U-Net architecture within the Mask Refine Module. (Namely,
     this subnet does not handle running the optical flow network.)
     """
 
-    def __init__(self, weights_path=None):
+    def __init__(self, optical_flow_model: OpticalFlowNetwork,
+                 weights_path='./mask_refine/davis_unet_weights.h5'):
         self._build_model()
+
+        self.optical_flow_model = optical_flow_model
 
         if weights_path is not None:
             self.load_weights(weights_path)
@@ -163,16 +157,17 @@ class MaskRefineSubnet:
         """
         Builds a U-Net for the mask refine network, 5 levels deep. Adapted from
         the original U-Net paper. Optimizes using adam schedule.
-        
-        Args:
-            loss: loss function to use
 
         Batch normalization is applied after every convolutional layer (except
         the very last layer). No (spatial) dropout is used. We elect to use 2x2
-        deconvolutions instead of 2x2 upsampling.
+        deconvolutions instead of 2x2 up-sampling.
         """
-
-        inputs = Input((None, None, 6))
+        
+        input_image = Input((None, None, 3))
+        input_masks = TimeDistributed(Input((None, None, 1)))
+        input_flow_field = Input((None, None, 2))
+        
+        inputs = _concat()([input_image, input_masks, input_flow_field])
         
         '''
         Layers are named as follows:
@@ -213,7 +208,7 @@ class MaskRefineSubnet:
         # block 10 (final outputs)
         final_conv = _conv2d(1, kernel=1, activation='sigmoid', name='final_conv')(up_block1)
 
-        model = Model(inputs=[inputs], outputs=[final_conv])
+        model = Model(inputs=[input_image, input_masks, input_flow_field], outputs=[final_conv])
 
         # compile model
         optimizer = Adam()
@@ -225,7 +220,7 @@ class MaskRefineSubnet:
 
     def load_weights(self, weights_path):
         """
-        Load pretrained weights for the U-Net (in hdf5 format).
+        Load pre-trained weights for the U-Net (in hdf5 format).
         
         Args:
             weights_path: path with filename of the weights binary
@@ -238,14 +233,37 @@ class MaskRefineSubnet:
         Trains the U-Net using inputs and ground truth from the given generators.
         
         Args:
-            train_generator: generate X, y input pairs for training
-            val_generator: generate X, y input pairs for validation
+            train_generator: generate training inputs
+            val_generator: generate input pairs for validation
             epochs: number of epochs to train
             steps_per_epoch: number of image pairs + masks per epoch for training
             val_steps_per_epoch: number of image pairs + mask per epoch for validation
 
         Returns: Keras history object
+        
+        inputs are the following in a tuple:
+        previous image:     [1, h, w, 3]
+        current image:      [1, h, w, 3]
+        masks:              [n, h, w, 1]
+        ground-truth masks: [n, h, w, 1]
         """
+
+        # define a wrapper generator that applies optical flow to some of the
+        # inputs and creates a new input stack and ground truth
+        def with_optical_flow(gen):
+            while True:
+                prev_img, curr_img, mask_tensor, gt_tensor = next(gen)
+        
+                check_rank(prev_img, curr_img, mask_tensor, gt_tensor, c_rank=4)
+        
+                # pad everything to multiples of 64
+                prev_img, curr_img, mask_tensor, gt_tensor = map(pad64, (prev_img, curr_img, mask_tensor, gt_tensor))
+        
+                # generate flow field and build new input stack
+                img_stack = np.concatenate((prev_img, curr_img), axis=-1)
+                flow_field = self.optical_flow_model.infer_from_image_stack(img_stack)
+                
+                yield [curr_img, mask_tensor, flow_field], gt_tensor
         
         # create the log directory for this training session
         date_and_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -268,15 +286,16 @@ class MaskRefineSubnet:
             ReduceLROnPlateau(patience=5),
             ModelCheckpoint(
                 checkpoint_file,
-                verbose=0, save_weights_only=True
+                verbose=0,
+                save_weights_only=True
             ),
             CSVLogger(history_file)
         ]
 
         history = self._model.fit_generator(
-            train_generator,
+            with_optical_flow(train_generator),
+            with_optical_flow(val_generator),
             steps_per_epoch=steps_per_epoch,
-            validation_data=val_generator,
             validation_steps=val_steps_per_epoch,
             epochs=epochs,
             callbacks=callbacks
@@ -284,165 +303,26 @@ class MaskRefineSubnet:
 
         return history
 
-    def predict(self, input_stack):
+    def predict(self, *inputs):
         """
         Run inference for a set of inputs (batch size must be 1).
         
         Args:
-            input_stack: inputs to mask refine model (see below)
+            inputs: inputs to mask refine model (see below)
 
         Returns:
             refined mask of shape [1, h, w, 1]
         
-        Input stack of shape [1, h, w, 6]
+        Inputs (in this order):
             IMAGE [1, h, w, 3]
             MASK  [1, h, w, 1]
             FLOW  [1, h, w, 2]
-        These are all concatenated along axis=2 (3rd axis).
         """
         
-        check_rank(input_stack, 4)
+        check_rank(*inputs, c_rank=4)
 
-        return self._model.predict(input_stack, batch_size=1)
-
-    @staticmethod
-    def build_input_stack(image, mask, flow_field):
-        """
-        Builds an input stack tensor (ready for use in model training) with batch
-        size of 1 from the image, mask, and flow field tensors.
-        :param image: color image tensor of shape [h, w, 3]
-        :param mask: mask tensor of shape [h, w, 1]
-        :param flow_field: optical flow tensor of shape [h, w, 2]
-        :return: input stack of shape [1, h, w, 6]
-        """
-        
-        check_rank(image, 3)
-        check_rank(mask, 3)
-        check_rank(flow_field, 3)
-
-        return np.expand_dims(np.concatenate((image, mask, flow_field), axis=2), axis=0)
+        return self._model.predict(inputs, batch_size=1)
 
     def __call__(self, *args):
         return self._model(*args)
-
-
-class MaskRefineModule:
-    """
-    Model for the entire Mask Refine network: we don't handle the creation of
-    the subnetworks here, just assembly and pipelining.
-    """
-
-    def __init__(self, optical_flow_model: OpticalFlowNetwork, mask_refine_subnet: MaskRefineSubnet):
-        self.optical_flow_model = optical_flow_model
-        self.mask_refine_subnet = mask_refine_subnet
-
-    def train(self, train_generator, val_generator, **kwargs):
-        """
-        
-        Args:
-            train_generator:
-            val_generator:
-            **kwargs:
-
-        Returns:
-
-        """
-        
-        # define a wrapper generator that applies optical flow to some of the
-        # inputs and creates a new input stack and ground truth
-        def with_optical_flow(gen):
-            while True:
-                X, y = next(gen)
-                
-                check_rank(X, 3)
-                check_rank(y, 3)
-
-                # pad image and mask to multiples of 64
-                X = pad64(X)
-                y = pad64(y)
-
-                # generate flow field and build new input stack
-                flow_field = self.optical_flow_model.infer_from_image_stack(X[..., :6])
-                Xnew = MaskRefineSubnet.build_input_stack(
-                    X[..., 3:6],
-                    np.expand_dims(X[..., 6], axis=2),
-                    flow_field)
-
-                ynew = np.expand_dims(y, axis=0)
-                
-                assert rank(Xnew) == 4 and rank(ynew) == 4
-
-                yield Xnew, ynew
-
-        return self.mask_refine_subnet.train(
-            with_optical_flow(train_generator),
-            with_optical_flow(val_generator),
-            **kwargs
-        )
-
-    def refine_mask(self, input_stack):
-        """
-        Refines a coarse probability mask generated by the ImageSeg module into
-        :param input_stack: previous image, current image, coarse_mask of shape [h, w, 7]
-        :return: refined mask of shape [h, w, 1]
-
-        input stack (concatenated along the 3rd axis (axis=2)):
-        PREV IMAGE  [h, w, 3]
-        CURR IMAGE  [h, w, 3]
-        COARSE MASK [h, w, 1]
-        """
-
-        check_rank(input_stack, 3)
-
-        input_stack = pad64(input_stack)  # TODO also make scale back to orig size
-
-        flow_field = self.optical_flow_model.infer_from_image_stack(input_stack[..., :6])
-        subnet_input_stack = MaskRefineSubnet.build_input_stack(input_stack[..., 3:6],
-                                                                np.expand_dims(input_stack[..., 6], axis=2),
-                                                                flow_field)
-
-        assert rank(subnet_input_stack) == 4
-
-        return self.mask_refine_subnet.predict(subnet_input_stack)
-
-    def evaluate_mask(self, input_stack, gt_mask):
-        """
-        Refines a coarse probability mask generated by the ImageSeg module into
-        :param input_stack: previous image, current image, coarse_mask of shape [h, w, 7]
-        :param gt_mask: ground truth mask for the current image, of shape [h, w, 1]
-        :return: list of metrics calculated for this mask
-
-        input stack (concatenated along the 3rd axis (axis=2)):
-        PREV IMAGE  [h, w, 3]
-        CURR IMAGE  [h, w, 3]
-        COARSE MASK [h, w, 1]
-        """
-
-        check_rank(input_stack, 3)
-        check_rank(gt_mask, 3)
-
-        input_stack = pad64(input_stack)
-        gt_mask = np.expand_dims(pad64(gt_mask), axis=0)
-
-        flow_field = self.optical_flow_model.infer_from_image_stack(input_stack[..., :6])
-        subnet_input_stack = MaskRefineSubnet.build_input_stack(input_stack[..., 3:6],
-                                                                np.expand_dims(input_stack[..., 6], axis=2),
-                                                                flow_field)
-
-        assert rank(subnet_input_stack) == 4
-        assert rank(gt_mask) == 4
-
-        return self.mask_refine_subnet._model.evaluate(subnet_input_stack, gt_mask)
-
-    @property
-    def metrics(self):
-        return self.mask_refine_subnet._model.metrics_names
-
-    @staticmethod
-    def build_input_stack(prev_image, curr_image, coarse_mask):
-        check_rank(prev_image, 3)
-        check_rank(curr_image, 3)
-        check_rank(coarse_mask, 3)
-
-        return np.concatenate((prev_image, curr_image, coarse_mask), axis=2)
 
