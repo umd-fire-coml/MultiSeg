@@ -121,7 +121,8 @@ def pad64(tensor):
     # pads images with zeros to the next largest multiple of 64 (center fix)
     h_, w_ = math.ceil(tensor.shape[0] / 64) * 64, math.ceil(tensor.shape[1] / 64) * 64
     h_pad, w_pad = h_ - tensor.shape[0], w_ - tensor.shape[1]
-    return np.pad(tensor, ((math.floor(h_pad / 2), math.ceil(h_pad / 2)),
+    return np.pad(tensor, ((0, 0),
+                           (math.floor(h_pad / 2), math.ceil(h_pad / 2)),
                            (math.floor(w_pad / 2), math.ceil(w_pad / 2)),
                            (0, 0)), mode='constant')
 
