@@ -251,6 +251,9 @@ class Davis2017Dataset(utils.Dataset):
         y: ground truth mask
         """
 
+        def make_batch_dim(tensor):
+            return np.expand_dims(tensor, axis=0)
+
         ordered_ids = deepcopy(self.image_ids[1:])
 
         id_pairs = []
@@ -299,20 +302,17 @@ class Davis2017Dataset(utils.Dataset):
 
             # generate a pair for each mask instance
             for i in range(gt_masks.shape[-1]):
+                gt_mask = np.expand_dims(gt_masks[..., i], axis=2)
+                
                 if mask_as_input:
                     aug_for_this = augmentation.to_deterministic()
 
                     aug_mask = np.expand_dims(pre_aug_masks[..., i], axis=2)
                     aug_mask = aug_for_this.augment_image(aug_mask)
-                    
-                    print(prev_image.shape)
-                    print(curr_image.shape)
-                    print(aug_mask.shape)
-                    print(gt_masks.shape)
 
-                    yield prev_image, curr_image, aug_mask, gt_masks
+                    yield map(make_batch_dim, (prev_image, curr_image, aug_mask, gt_mask))
 
-                yield prev_image, curr_image, gt_masks
+                yield map(make_batch_dim, (prev_image, curr_image, gt_mask))
 
             # add the image to the back of the queue
             id_pair_queue.appendleft(curr_id)

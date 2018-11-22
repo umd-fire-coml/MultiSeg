@@ -290,7 +290,7 @@ class MaskRefineSubnet:
 
         history = self._model.fit_generator(
             with_optical_flow(train_generator),
-            with_optical_flow(val_generator),
+            validation_data=with_optical_flow(val_generator),
             steps_per_epoch=steps_per_epoch,
             validation_steps=val_steps_per_epoch,
             epochs=epochs,
