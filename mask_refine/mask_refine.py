@@ -225,8 +225,8 @@ class MaskRefineSubnet:
         Args:
             weights_path: path with filename of the weights binary
         """
-
-        self._model.load_weights(weights_path)
+        if weights_path:
+            self._model.load_weights(weights_path)
 
     def train(self, train_generator, val_generator, epochs=30, steps_per_epoch=500, val_steps_per_epoch=100):
         """
