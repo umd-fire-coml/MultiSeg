@@ -295,23 +295,24 @@ class Davis2017Dataset(utils.Dataset):
             prev_image = self.load_image(prev_id)
             curr_image = self.load_image(curr_id)
             gt_masks, _ = self.load_float_mask(curr_id)
-            aug_masks, _ = self.load_int_mask(curr_id)
+            pre_aug_masks, _ = self.load_int_mask(curr_id)
 
             # generate a pair for each mask instance
             for i in range(gt_masks.shape[-1]):
                 if mask_as_input:
                     aug_for_this = augmentation.to_deterministic()
 
-                    aug_mask = np.expand_dims(aug_masks[..., i], axis=2)
+                    aug_mask = np.expand_dims(pre_aug_masks[..., i], axis=2)
                     aug_mask = aug_for_this.augment_image(aug_mask)
+                    
+                    print(prev_image.shape)
+                    print(curr_image.shape)
+                    print(aug_mask.shape)
+                    print(gt_masks.shape)
 
-                    X = np.concatenate((prev_image, curr_image, aug_mask), axis=2)
-                else:
-                    X = np.concatenate((prev_image, curr_image), axis=3)
+                    yield prev_image, curr_image, aug_mask, gt_masks
 
-                y = np.expand_dims(gt_masks[..., i], axis=2)
-
-                yield X, y
+                yield prev_image, curr_image, gt_masks
 
             # add the image to the back of the queue
             id_pair_queue.appendleft(curr_id)

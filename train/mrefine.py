@@ -148,7 +148,7 @@ if cmd == COMMANDS['augs']:
         plt.show()
 elif cmd == COMMANDS['train']:
     from opt_flow.opt_flow import TensorFlowPWCNet
-    from mask_refine.mask_refine import MaskRefineSubnet, MaskRefineModule
+    from mask_refine.mask_refine import MaskRefineSubnet
 
     dataset = get_trainval(dataset_path)
 
@@ -160,38 +160,19 @@ elif cmd == COMMANDS['train']:
     
     with tf.device(f'/device:GPU:{device + 1}'):
         with pwc_net.graph.as_default():
-            mr_subnet = MaskRefineSubnet()
-            mr_module = MaskRefineModule(pwc_net, mr_subnet)
+            mr_subnet = MaskRefineSubnet(pwc_net)
     
             if mask_refine_path is not None:
                 mr_subnet.load_weights(mask_refine_path)
     
             printd('Starting MaskRefine training...')
     
-            mr_module.train(train_gen, val_gen, epochs=epochs, steps_per_epoch=steps)
-elif cmd == COMMANDS['infer']:
-    from opt_flow.opt_flow import TensorFlowPWCNet
-    from mask_refine.mask_refine import MaskRefineSubnet, MaskRefineModule
-
-    dataset = get_trainval(dataset_path)
-    imgs = dataset.paired_generator(AUG_SEQ)
-
-    with tf.device(f'/device:GPU:{device}'):
-        pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=optical_flow_path, verbose=print_debugs)
-        with pwc_net.graph.as_default():
-            mr_subnet = MaskRefineSubnet()
-            mr_module = MaskRefineModule(pwc_net, mr_subnet)
-    
-            if mask_refine_path is not None:
-                mr_subnet.load_weights(mask_refine_path)
-        
-        # TODO work in progress
-
+            mr_subnet.train(train_gen, val_gen, epochs=epochs, steps_per_epoch=steps)
 elif cmd == COMMANDS['sizes']:
     warn_if_debugging_without_prints("sizes")
 
     from opt_flow.opt_flow import TensorFlowPWCNet
-    from mask_refine.mask_refine import MaskRefineSubnet, MaskRefineModule
+    from mask_refine.mask_refine import MaskRefineSubnet
     import numpy as np
 
     dataset = get_trainval(dataset_path)
@@ -199,8 +180,7 @@ elif cmd == COMMANDS['sizes']:
     with tf.device(f'/device:GPU:{device}'):
         pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=optical_flow_path, verbose=print_debugs)
         with pwc_net.graph.as_default():
-            mr_subnet = MaskRefineSubnet()
-            mr_module = MaskRefineModule(pwc_net, mr_subnet)
+            mr_subnet = MaskRefineSubnet(pwc_net)
     
             input_stack = np.empty((1, 480, 854, 6))
             output = mr_subnet.predict(input_stack)
@@ -218,7 +198,7 @@ elif cmd == COMMANDS['sizes']:
             printd(f'Output Shape:\t{output.shape}')
     
             input_stack = np.empty((480, 854, 7))
-            output = mr_module.refine_mask(input_stack)
+            output = mr_subnet.predict(input_stack)
     
             printd('Entire Module:')
             printd(f'Input Shape:\t{input_stack.shape}')
