@@ -70,7 +70,7 @@ parser.add_argument('-m', '--mask-refine', dest='mask_refine_path', type=str,
 parser.add_argument('-v', '--validation-split', dest='val_split', type=float,
                     nargs=1, default=[0.15])
 parser.add_argument('-e', '-epochssteps', dest='epochssteps', type=int,
-                    nargs=2, default=[200, 1000])
+                    nargs=2, default=[100, 500])
 parser.add_argument('-p', '--print-debugs', dest='print_debugs', action='store_true')
 parser.add_argument('--gpu', dest='device', type=int, nargs=1, default=[0])
 
@@ -157,17 +157,18 @@ elif cmd == COMMANDS['train']:
 
     pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=optical_flow_path,
                                verbose=print_debugs, gpu=device)
-    
-    with tf.device(f'/device:GPU:{device + 1}'):
-        with pwc_net.graph.as_default():
+
+    with pwc_net.graph.as_default():
+        with tf.device(f'/device:GPU:{device + 1}'):
+        
             mr_subnet = MaskRefineSubnet(pwc_net)
     
             if mask_refine_path is not None:
                 mr_subnet.load_weights(mask_refine_path)
     
-            printd('Starting MaskRefine training...')
-    
-            mr_subnet.train(train_gen, val_gen, epochs=epochs, steps_per_epoch=steps)
+        printd('Starting MaskRefine training...')
+
+        mr_subnet.train(train_gen, val_gen, epochs=epochs, steps_per_epoch=steps)
 elif cmd == COMMANDS['sizes']:
     warn_if_debugging_without_prints("sizes")
 

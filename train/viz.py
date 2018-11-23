@@ -141,3 +141,33 @@ def vis_square(*imgs, titles: List[str] = None, **kwargs):
 
     vis_fill(*imgs, rows=rows, cols=cols, titles=titles, **kwargs)
 
+
+# KERAS MODEL VISUALIZATION
+def save_model_graph_plot(model, filename):
+    from keras.utils import plot_model
+    
+    plot_model(model, to_file=filename, show_shapes=True)
+
+
+_metric_names = {
+    'acc': 'Accuracy',
+    'loss': 'Loss',
+    'binary_crossentropy': 'Binary Cross Entropy',
+    'mask_binary_crossentropy': 'Mask-Normalized Binary Cross Entropy'
+}
+
+
+def plot_history_metric(history, metric):
+    plt.plot(history.history[metric])
+    plt.plot(history.history[f'val_{metric}'])
+    plt.title(f'Model {_metric_names[metric]}')
+    plt.ylabel(_metric_names[metric])
+    plt.xlabel('Epoch')
+    plt.legend(['Train', 'Test'], loc='upper left')
+    plt.show()
+
+
+def plot_history(history):
+    plot_history_metric(history, 'acc')
+    plot_history_metric(history, 'loss')
+

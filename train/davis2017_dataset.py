@@ -311,8 +311,8 @@ class Davis2017Dataset(utils.Dataset):
                     aug_mask = aug_for_this.augment_image(aug_mask)
 
                     yield map(make_batch_dim, (prev_image, curr_image, aug_mask, gt_mask))
-
-                yield map(make_batch_dim, (prev_image, curr_image, gt_mask))
+                else:
+                    yield map(make_batch_dim, (prev_image, curr_image, gt_mask))
 
             # add the image to the back of the queue
             id_pair_queue.appendleft(curr_id)

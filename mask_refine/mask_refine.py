@@ -41,7 +41,7 @@ def _batchnorm():
 
 
 # functional blocks
-def _down_block(input_layer, filters, n, convs=4):
+def _down_block(input_layer, filters, n, convs=2):
     assert convs > 0
     
     conv = _conv2d(filters, name=f'down{n}-conv1')(input_layer)
@@ -56,7 +56,7 @@ def _down_block(input_layer, filters, n, convs=4):
     return norm, pool
 
 
-def _level_block(input_layer, filters, n, convs=4):
+def _level_block(input_layer, filters, n, convs=2):
     assert convs > 0
     
     norm = input_layer
@@ -68,7 +68,7 @@ def _level_block(input_layer, filters, n, convs=4):
     return norm
 
 
-def _up_block(input_layer, residual_layer, filters, n, convs=4):
+def _up_block(input_layer, residual_layer, filters, n, convs=2):
     up = _deconv2d(2 * filters, name=f'up{n}-upconv')(input_layer)
     norm = _batchnorm()(up)
     
@@ -106,7 +106,7 @@ def check_rank(*tensors: Union[Iterable[np.ndarray], np.ndarray], c_rank):
             raise ValueError(f'input must have rank {c_rank} (provided: {rank(tensor)})')
 
 
-def pad64(tensor):
+def pad64(tensor, image_dims=(0, 1)):
     """
     Pads an image with zeros to the next largest multiple of 64, centering the
     image as much as possible.
@@ -117,10 +117,11 @@ def pad64(tensor):
     Returns:
         padded image with dimensions that are multiples of 64
 
+    TODO make this more extensible
     """
     # pads images with zeros to the next largest multiple of 64 (center fix)
-    h_, w_ = math.ceil(tensor.shape[0] / 64) * 64, math.ceil(tensor.shape[1] / 64) * 64
-    h_pad, w_pad = h_ - tensor.shape[0], w_ - tensor.shape[1]
+    h_, w_ = math.ceil(tensor.shape[1] / 64) * 64, math.ceil(tensor.shape[2] / 64) * 64
+    h_pad, w_pad = h_ - tensor.shape[1], w_ - tensor.shape[2]
     return np.pad(tensor, ((0, 0),
                            (math.floor(h_pad / 2), math.ceil(h_pad / 2)),
                            (math.floor(w_pad / 2), math.ceil(w_pad / 2)),
@@ -258,7 +259,7 @@ class MaskRefineSubnet:
         
                 # generate flow field and build new input stack
                 img_stack = np.concatenate((prev_img, curr_img), axis=-1)
-                flow_field = self.optical_flow_model.infer_from_image_stack(img_stack)
+                flow_field = np.expand_dims(self.optical_flow_model.infer_from_image_stack(img_stack[0, ...]), axis=0)
                 
                 yield [curr_img, mask_tensor, flow_field], gt_tensor
         
