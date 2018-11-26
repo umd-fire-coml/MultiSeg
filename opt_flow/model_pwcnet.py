@@ -587,201 +587,200 @@ class ModelPWCNet(ModelBase):
     def train(self):
         """Training loop
         """
-        with self.graph.as_default():
-            # Reset step counter
-            if self.opts['train_mode'] == 'fine-tune':
-                step = 1
-                self.sess.run(self.g_step_op.assign(0))
+        # Reset step counter
+        if self.opts['train_mode'] == 'fine-tune':
+            step = 1
+            self.sess.run(self.g_step_op.assign(0))
+            if self.opts['verbose']:
+                print("Start finetuning...")
+        else:
+            if self.last_ckpt is not None:
+                step = self.g_step_op.eval(session=self.sess) + 1
                 if self.opts['verbose']:
-                    print("Start finetuning...")
+                    print(f"Resume training from step {step}...")
             else:
-                if self.last_ckpt is not None:
-                    step = self.g_step_op.eval(session=self.sess) + 1
-                    if self.opts['verbose']:
-                        print(f"Resume training from step {step}...")
-                else:
-                    step = 1
-                    if self.opts['verbose']:
-                        print("Start training from scratch...")
+                step = 1
+                if self.opts['verbose']:
+                    print("Start training from scratch...")
 
-            # Get batch sizes
-            batch_size = self.opts['batch_size']
-            val_batch_size = self.opts['val_batch_size']
-            if self.mode == 'train_noval':
-                warnings.warn("Setting val_batch_size=0 because dataset is in 'train_noval' mode")
-                val_batch_size = 0
-            if val_batch_size == -1:
-                val_batch_size = self.ds.val_size
+        # Get batch sizes
+        batch_size = self.opts['batch_size']
+        val_batch_size = self.opts['val_batch_size']
+        if self.mode == 'train_noval':
+            warnings.warn("Setting val_batch_size=0 because dataset is in 'train_noval' mode")
+            val_batch_size = 0
+        if val_batch_size == -1:
+            val_batch_size = self.ds.val_size
 
-            # Init batch progress trackers
-            train_loss, train_epe, duration = [], [], []
-            ranking_value = 0
+        # Init batch progress trackers
+        train_loss, train_epe, duration = [], [], []
+        ranking_value = 0
 
-            # Only load Tensorboard validation/test images once
-            if self.opts['tb_val_imgs'] is not None:
-                tb_val_loaded = False
-            if self.opts['tb_test_imgs'] is not None:
-                tb_test_loaded = False
+        # Only load Tensorboard validation/test images once
+        if self.opts['tb_val_imgs'] is not None:
+            tb_val_loaded = False
+        if self.opts['tb_test_imgs'] is not None:
+            tb_test_loaded = False
 
-            # Use feed_dict from np or with tf.data.Dataset?
+        # Use feed_dict from np or with tf.data.Dataset?
+        if self.opts['use_tf_data'] is True:
+            # Create tf.data.Dataset managers
+            train_tf_ds = self.ds.get_tf_ds(batch_size, self.num_gpus, split='train', sess=self.sess)
+            val_tf_ds = self.ds.get_tf_ds(batch_size, self.num_gpus, split='val', sess=self.sess)
+
+            # Ops for initializing the two different iterators
+            train_next_batch = train_tf_ds.make_one_shot_iterator().get_next()
+            val_next_batch = val_tf_ds.make_one_shot_iterator().get_next()
+
+        while step < self.opts['max_steps'] + 1:
+
+            # Get a batch of samples and make them conform to the network's requirements
+            # x: [batch_size*num_gpus,2,H,W,3] uint8 y: [batch_size*num_gpus,H,W,2] float32
+            # x_adapt: [batch_size,2,H,W,3] float32 y_adapt: [batch_size,H,W,2] float32
             if self.opts['use_tf_data'] is True:
-                # Create tf.data.Dataset managers
-                train_tf_ds = self.ds.get_tf_ds(batch_size, self.num_gpus, split='train', sess=self.sess)
-                val_tf_ds = self.ds.get_tf_ds(batch_size, self.num_gpus, split='val', sess=self.sess)
+                x, y, _ = self.sess.run(train_next_batch)
+            else:
+                x, y, _ = self.ds.next_batch(batch_size * self.num_gpus, split='train')
+            x_adapt, _ = self.adapt_x(x)
+            y_adapt, _ = self.adapt_y(y)
 
-                # Ops for initializing the two different iterators
-                train_next_batch = train_tf_ds.make_one_shot_iterator().get_next()
-                val_next_batch = val_tf_ds.make_one_shot_iterator().get_next()
+            # Run the samples through the network (loss, error rate, and optim ops (backprop))
+            feed_dict = {self.x_tnsr: x_adapt, self.y_tnsr: y_adapt}
+            start_time = time.time()
+            y_hat = self.sess.run(self.y_hat_train_tnsr, feed_dict=feed_dict)
+            duration.append(time.time() - start_time)
+            loss, epe = self.postproc_y_hat_train(y_hat)  # y_hat: [107.0802, 5.8556495, None]
+            # if self.num_gpus == 1: # Single-GPU case
+            # else: # Multi-CPU case
 
-            while step < self.opts['max_steps'] + 1:
+            train_loss.append(loss), train_epe.append(epe)
 
-                # Get a batch of samples and make them conform to the network's requirements
-                # x: [batch_size*num_gpus,2,H,W,3] uint8 y: [batch_size*num_gpus,H,W,2] float32
-                # x_adapt: [batch_size,2,H,W,3] float32 y_adapt: [batch_size,H,W,2] float32
-                if self.opts['use_tf_data'] is True:
-                    x, y, _ = self.sess.run(train_next_batch)
-                else:
-                    x, y, _ = self.ds.next_batch(batch_size * self.num_gpus, split='train')
-                x_adapt, _ = self.adapt_x(x)
-                y_adapt, _ = self.adapt_y(y)
+            # Show training progress
+            if step % self.opts['display_step'] == 0:
+                # Send results to tensorboard
+                loss, epe = np.mean(train_loss), np.mean(train_epe)
+                ranking_value = epe
+                self.tb_train.log_scalar("losses/loss", loss, step)
+                self.tb_train.log_scalar("metrics/epe", epe, step)
+                lr = self.lr.eval(session=self.sess)
+                self.tb_train.log_scalar("optim/lr", lr, step)
 
-                # Run the samples through the network (loss, error rate, and optim ops (backprop))
-                feed_dict = {self.x_tnsr: x_adapt, self.y_tnsr: y_adapt}
-                start_time = time.time()
-                y_hat = self.sess.run(self.y_hat_train_tnsr, feed_dict=feed_dict)
-                duration.append(time.time() - start_time)
-                loss, epe = self.postproc_y_hat_train(y_hat)  # y_hat: [107.0802, 5.8556495, None]
-                # if self.num_gpus == 1: # Single-GPU case
-                # else: # Multi-CPU case
+                # Print results, if requested
+                if self.opts['verbose']:
+                    sec_per_step = np.mean(duration)
+                    samples_per_step = batch_size * self.num_gpus
+                    samples_per_sec = samples_per_step / sec_per_step
+                    eta = round((self.opts['max_steps'] - step) * sec_per_step)
+                    ts = time.strftime("%Y-%m-%d %H:%M:%S")
+                    status = f"{ts} Iter {self.g_step_op.eval(session=self.sess)}" \
+                             f" [Train]: loss={loss:.2f}, epe={epe:.2f}, lr={lr:.6f}," \
+                             f" samples/sec={samples_per_sec:.1f}, sec/step={sec_per_step:.3f}," \
+                             f" eta={datetime.timedelta(seconds=eta)}"
+                    print(status)
 
-                train_loss.append(loss), train_epe.append(epe)
+                # Reset batch progress trackers
+                train_loss, train_epe, duration = [], [], []
 
-                # Show training progress
-                if step % self.opts['display_step'] == 0:
-                    # Send results to tensorboard
-                    loss, epe = np.mean(train_loss), np.mean(train_epe)
-                    ranking_value = epe
-                    self.tb_train.log_scalar("losses/loss", loss, step)
-                    self.tb_train.log_scalar("metrics/epe", epe, step)
-                    lr = self.lr.eval(session=self.sess)
-                    self.tb_train.log_scalar("optim/lr", lr, step)
+            # Show progress on validation ds, if requested
+            if val_batch_size > 0 and step % self.opts['val_step'] == 0:
 
-                    # Print results, if requested
-                    if self.opts['verbose']:
-                        sec_per_step = np.mean(duration)
-                        samples_per_step = batch_size * self.num_gpus
-                        samples_per_sec = samples_per_step / sec_per_step
-                        eta = round((self.opts['max_steps'] - step) * sec_per_step)
-                        ts = time.strftime("%Y-%m-%d %H:%M:%S")
-                        status = f"{ts} Iter {self.g_step_op.eval(session=self.sess)}" \
-                                 f" [Train]: loss={loss:.2f}, epe={epe:.2f}, lr={lr:.6f}," \
-                                 f" samples/sec={samples_per_sec:.1f}, sec/step={sec_per_step:.3f}," \
-                                 f" eta={datetime.timedelta(seconds=eta)}"
-                        print(status)
+                val_loss, val_epe = [], []
+                rounds, _ = divmod(val_batch_size, batch_size * self.num_gpus)
+                for _round in range(rounds):
+                    if self.opts['use_tf_data'] is True:
+                        x, y, _, _ = self.sess.run(val_next_batch)
+                    else:
+                        # Get a batch of val samples and make them conform to the network's requirements
+                        x, y, _ = self.ds.next_batch(batch_size * self.num_gpus, split='val')
+                        # x: [batch_size * self.num_gpus,2,H,W,3] uint8 y: [batch_size,H,W,2] float32
+                    x_adapt, _ = self.adapt_x(x)
+                    y_adapt, _ = self.adapt_y(y)
+                    # x_adapt: [batch_size * self.num_gpus,2,H,W,3] float32 y_adapt: [batch_size,H,W,2] float32
 
-                    # Reset batch progress trackers
-                    train_loss, train_epe, duration = [], [], []
+                    # Run the val samples through the network (loss and error rate ops)
+                    feed_dict = {self.x_tnsr: x_adapt, self.y_tnsr: y_adapt}
+                    y_hat = self.sess.run(self.y_hat_val_tnsr, feed_dict=feed_dict)
+                    loss, epe = self.postproc_y_hat_val(y_hat)
+                    val_loss.append(loss), val_epe.append(epe)
 
-                # Show progress on validation ds, if requested
-                if val_batch_size > 0 and step % self.opts['val_step'] == 0:
+                # Send the results to tensorboard
+                loss, epe = np.mean(val_loss), np.mean(val_epe)
+                ranking_value = epe
+                self.tb_val.log_scalar("losses/loss", loss, step)
+                self.tb_val.log_scalar("metrics/epe", epe, step)
 
-                    val_loss, val_epe = [], []
-                    rounds, _ = divmod(val_batch_size, batch_size * self.num_gpus)
-                    for _round in range(rounds):
-                        if self.opts['use_tf_data'] is True:
-                            x, y, _, _ = self.sess.run(val_next_batch)
-                        else:
-                            # Get a batch of val samples and make them conform to the network's requirements
-                            x, y, _ = self.ds.next_batch(batch_size * self.num_gpus, split='val')
-                            # x: [batch_size * self.num_gpus,2,H,W,3] uint8 y: [batch_size,H,W,2] float32
-                        x_adapt, _ = self.adapt_x(x)
-                        y_adapt, _ = self.adapt_y(y)
-                        # x_adapt: [batch_size * self.num_gpus,2,H,W,3] float32 y_adapt: [batch_size,H,W,2] float32
+                # Print results, if requested
+                if self.opts['verbose']:
+                    ts = time.strftime("%Y-%m-%d %H:%M:%S")
+                    status = f"{ts} Iter {self.g_step_op.eval(session=self.sess)} [Val]: loss={loss:.2f}, epe={epe:.2f}"
+                    print(status)
 
-                        # Run the val samples through the network (loss and error rate ops)
-                        feed_dict = {self.x_tnsr: x_adapt, self.y_tnsr: y_adapt}
-                        y_hat = self.sess.run(self.y_hat_val_tnsr, feed_dict=feed_dict)
-                        loss, epe = self.postproc_y_hat_val(y_hat)
-                        val_loss.append(loss), val_epe.append(epe)
+            # Save a checkpoint every snapshot_step
+            if step % self.opts['snapshot_step'] == 0 or step == self.opts['max_steps']:
+
+                # Log evolution of test images to Tensorboard, if requested
+                if self.opts['tb_test_imgs'] is not None:
+                    # Get a batch of test samples and make them conform to the network's requirements
+                    if tb_test_loaded is False:
+                        x_tb_test, IDs_tb_test = self.ds.get_samples(
+                            batch_size * self.num_gpus, split='test', simple_IDs=True)
+                        x_tb_test_adapt, _ = self.adapt_x(x_tb_test)
+                        # IDs_tb_test = self.ds.simplify_IDs(x_IDs)
+                        tb_test_loaded = True
+
+                    # Run the test samples through the network
+                    feed_dict = {self.x_tnsr: x_tb_test_adapt}
+                    y_hat = self.sess.run(self.y_hat_test_tnsr, feed_dict=feed_dict)
+                    pred_flows, pred_flows_pyr = self.postproc_y_hat_test(y_hat)
+
+                    # Only show batch_size results, no matter what the GPU count is
+                    pred_flows, pred_flows_pyr = pred_flows[0:batch_size], pred_flows_pyr[0:batch_size]
 
                     # Send the results to tensorboard
-                    loss, epe = np.mean(val_loss), np.mean(val_epe)
-                    ranking_value = epe
-                    self.tb_val.log_scalar("losses/loss", loss, step)
-                    self.tb_val.log_scalar("metrics/epe", epe, step)
+                    if self.opts['tb_test_imgs'] == 'top_flow':
+                        self.tb_test.log_imgs_w_flows('test/{}_flows', x_tb_test, None, 0, pred_flows,
+                                                      None, step, IDs_tb_test)
+                    else:
+                        self.tb_test.log_imgs_w_flows('test/{}_flows_pyr', x_tb_test, pred_flows_pyr,
+                                                      self.opts['pyr_lvls'] - self.opts['flow_pred_lvl'], pred_flows,
+                                                      None, step, IDs_tb_test)
 
-                    # Print results, if requested
-                    if self.opts['verbose']:
-                        ts = time.strftime("%Y-%m-%d %H:%M:%S")
-                        status = f"{ts} Iter {self.g_step_op.eval(session=self.sess)} [Val]: loss={loss:.2f}, epe={epe:.2f}"
-                        print(status)
+                # Log evolution of val images, if requested
+                if self.opts['tb_val_imgs'] is not None:
+                    # Get a batch of val samples and make them conform to the network's requirements
+                    if tb_val_loaded is False:
+                        x_tb_val, y_tb_val, IDs_tb_val = self.ds.get_samples(
+                            batch_size * self.num_gpus, split='val', simple_IDs=True)
+                        x_tb_val_adapt, _ = self.adapt_x(x_tb_val)
+                        # IDs_tb_val = self.ds.simplify_IDs(x_IDs)
+                        tb_val_loaded = True
 
-                # Save a checkpoint every snapshot_step
-                if step % self.opts['snapshot_step'] == 0 or step == self.opts['max_steps']:
+                    # Run the val samples through the network (top flow and pyramid)
+                    feed_dict = {self.x_tnsr: x_tb_val_adapt}
+                    y_hat = self.sess.run(self.y_hat_test_tnsr, feed_dict=feed_dict)
+                    pred_flows, pred_flows_pyr = self.postproc_y_hat_test(y_hat)
 
-                    # Log evolution of test images to Tensorboard, if requested
-                    if self.opts['tb_test_imgs'] is not None:
-                        # Get a batch of test samples and make them conform to the network's requirements
-                        if tb_test_loaded is False:
-                            x_tb_test, IDs_tb_test = self.ds.get_samples(
-                                batch_size * self.num_gpus, split='test', simple_IDs=True)
-                            x_tb_test_adapt, _ = self.adapt_x(x_tb_test)
-                            # IDs_tb_test = self.ds.simplify_IDs(x_IDs)
-                            tb_test_loaded = True
+                    # Only show batch_size results, no matter what the GPU count is
+                    x_tb_val, y_tb_val = x_tb_val[0:batch_size], y_tb_val[0:batch_size]
+                    IDs_tb_val = IDs_tb_val[0:batch_size]
+                    pred_flows, pred_flows_pyr = pred_flows[0:batch_size], pred_flows_pyr[0:batch_size]
 
-                        # Run the test samples through the network
-                        feed_dict = {self.x_tnsr: x_tb_test_adapt}
-                        y_hat = self.sess.run(self.y_hat_test_tnsr, feed_dict=feed_dict)
-                        pred_flows, pred_flows_pyr = self.postproc_y_hat_test(y_hat)
+                    # Send the results to tensorboard
+                    if self.opts['tb_val_imgs'] == 'top_flow':
+                        self.tb_val.log_imgs_w_flows('val/{}_flows', x_tb_val, None, 0, pred_flows,
+                                                     y_tb_val, step, IDs_tb_val)
+                    else:
+                        self.tb_val.log_imgs_w_flows('val/{}_flows_pyr', x_tb_val[0:batch_size], pred_flows_pyr,
+                                                     self.opts['pyr_lvls'] - self.opts['flow_pred_lvl'], pred_flows,
+                                                     y_tb_val, step, IDs_tb_val)
 
-                        # Only show batch_size results, no matter what the GPU count is
-                        pred_flows, pred_flows_pyr = pred_flows[0:batch_size], pred_flows_pyr[0:batch_size]
+                # Save model
+                self.save_ckpt(ranking_value)
 
-                        # Send the results to tensorboard
-                        if self.opts['tb_test_imgs'] == 'top_flow':
-                            self.tb_test.log_imgs_w_flows('test/{}_flows', x_tb_test, None, 0, pred_flows,
-                                                          None, step, IDs_tb_test)
-                        else:
-                            self.tb_test.log_imgs_w_flows('test/{}_flows_pyr', x_tb_test, pred_flows_pyr,
-                                                          self.opts['pyr_lvls'] - self.opts['flow_pred_lvl'], pred_flows,
-                                                          None, step, IDs_tb_test)
+            step += 1
 
-                    # Log evolution of val images, if requested
-                    if self.opts['tb_val_imgs'] is not None:
-                        # Get a batch of val samples and make them conform to the network's requirements
-                        if tb_val_loaded is False:
-                            x_tb_val, y_tb_val, IDs_tb_val = self.ds.get_samples(
-                                batch_size * self.num_gpus, split='val', simple_IDs=True)
-                            x_tb_val_adapt, _ = self.adapt_x(x_tb_val)
-                            # IDs_tb_val = self.ds.simplify_IDs(x_IDs)
-                            tb_val_loaded = True
-
-                        # Run the val samples through the network (top flow and pyramid)
-                        feed_dict = {self.x_tnsr: x_tb_val_adapt}
-                        y_hat = self.sess.run(self.y_hat_test_tnsr, feed_dict=feed_dict)
-                        pred_flows, pred_flows_pyr = self.postproc_y_hat_test(y_hat)
-
-                        # Only show batch_size results, no matter what the GPU count is
-                        x_tb_val, y_tb_val = x_tb_val[0:batch_size], y_tb_val[0:batch_size]
-                        IDs_tb_val = IDs_tb_val[0:batch_size]
-                        pred_flows, pred_flows_pyr = pred_flows[0:batch_size], pred_flows_pyr[0:batch_size]
-
-                        # Send the results to tensorboard
-                        if self.opts['tb_val_imgs'] == 'top_flow':
-                            self.tb_val.log_imgs_w_flows('val/{}_flows', x_tb_val, None, 0, pred_flows,
-                                                         y_tb_val, step, IDs_tb_val)
-                        else:
-                            self.tb_val.log_imgs_w_flows('val/{}_flows_pyr', x_tb_val[0:batch_size], pred_flows_pyr,
-                                                         self.opts['pyr_lvls'] - self.opts['flow_pred_lvl'], pred_flows,
-                                                         y_tb_val, step, IDs_tb_val)
-
-                    # Save model
-                    self.save_ckpt(ranking_value)
-
-                step += 1
-
-            if self.opts['verbose']:
-                print("... done training.")
+        if self.opts['verbose']:
+            print("... done training.")
 
     ###
     # Evaluation helpers
@@ -821,65 +820,65 @@ class ModelPWCNet(ModelBase):
         Returns:
             Aaverage score for the entire dataset, a panda df with individual scores for further error analysis
         """
-        with self.graph.as_default():
-            # Use feed_dict from np or with tf.data.Dataset?
-            batch_size = self.opts['batch_size']
+    
+        # Use feed_dict from np or with tf.data.Dataset?
+        batch_size = self.opts['batch_size']
+        if self.opts['use_tf_data'] is True:
+            # Create tf.data.Dataset manager
+            tf_ds = self.ds.get_tf_ds(batch_size=batch_size, split='val', sess=self.sess)
+
+            # Ops for initializing the iterator
+            next_batch = tf_ds.make_one_shot_iterator().get_next()
+
+        # Store results in a dataframe
+        if metric_name is None:
+            metric_name = 'Score'
+        df = pd.DataFrame(columns=['ID', metric_name, 'Duration', 'Avg_Flow_Mag', 'Max_Flow_Mag'])
+
+        # Chunk dataset
+        rounds, rounds_left = divmod(self.ds.val_size, batch_size)
+        if rounds_left:
+            rounds += 1
+
+        # Loop through samples and track their model performance
+        desc = f'Measuring {metric_name} and saving preds' if save_preds else f'Measuring {metric_name}'
+        idx = 0
+        for _round in trange(rounds, ascii=True, ncols=100, desc=desc):
+
+            # Fetch and adapt sample
             if self.opts['use_tf_data'] is True:
-                # Create tf.data.Dataset manager
-                tf_ds = self.ds.get_tf_ds(batch_size=batch_size, split='val', sess=self.sess)
+                x, y, y_hat_paths, IDs = self.sess.run(next_batch)
+                y_hat_paths = [y_hat_path.decode() for y_hat_path in y_hat_paths]
+                IDs = [ID.decode() for ID in IDs]
+            else:
+                # Get a batch of samples and make them conform to the network's requirements
+                x, y, y_hat_paths, IDs = self.ds.next_batch(batch_size, split='val_with_pred_paths')
+                # x: [batch_size * self.num_gpus,2,H,W,3] uint8 y: [batch_size,H,W,2] float32
 
-                # Ops for initializing the iterator
-                next_batch = tf_ds.make_one_shot_iterator().get_next()
+            x_adapt, _ = self.adapt_x(x)
+            y_adapt, y_adapt_info = self.adapt_y(y)
+            # x_adapt: [batch_size * self.num_gpus,2,H,W,3] float32 y_adapt: [batch_size,H,W,2] float32
 
-            # Store results in a dataframe
-            if metric_name is None:
-                metric_name = 'Score'
-            df = pd.DataFrame(columns=['ID', metric_name, 'Duration', 'Avg_Flow_Mag', 'Max_Flow_Mag'])
+            # Run the sample through the network (metric op)
+            feed_dict = {self.x_tnsr: x_adapt, self.y_tnsr: y_adapt}
+            start_time = time.time()
+            y_hat = self.sess.run(self.y_hat_val_tnsr, feed_dict=feed_dict)
+            duration = time.time() - start_time
+            y_hats, metrics = self.postproc_y_hat_val(y_hat, y_adapt_info)
 
-            # Chunk dataset
-            rounds, rounds_left = divmod(self.ds.val_size, batch_size)
-            if rounds_left:
-                rounds += 1
+            # Save the individual results in df
+            duration /= batch_size
+            for y_hat, metric, y_hat_path, ID in zip(y_hats, metrics, y_hat_paths, IDs):
+                _, flow_mag_avg, flow_mag_max = flow_mag_stats(y_hat)
+                df.loc[idx] = (ID, metric, duration, flow_mag_avg, flow_mag_max)
+                if save_preds:
+                    flow_write(y_hat, y_hat_path)
+                    info=f"{metric_name}={metric:.2f}"
+                    flow_write_as_png(y_hat, y_hat_path.replace('.flo', '.png'), info=info)
+                idx += 1
 
-            # Loop through samples and track their model performance
-            desc = f'Measuring {metric_name} and saving preds' if save_preds else f'Measuring {metric_name}'
-            idx = 0
-            for _round in trange(rounds, ascii=True, ncols=100, desc=desc):
-
-                # Fetch and adapt sample
-                if self.opts['use_tf_data'] is True:
-                    x, y, y_hat_paths, IDs = self.sess.run(next_batch)
-                    y_hat_paths = [y_hat_path.decode() for y_hat_path in y_hat_paths]
-                    IDs = [ID.decode() for ID in IDs]
-                else:
-                    # Get a batch of samples and make them conform to the network's requirements
-                    x, y, y_hat_paths, IDs = self.ds.next_batch(batch_size, split='val_with_pred_paths')
-                    # x: [batch_size * self.num_gpus,2,H,W,3] uint8 y: [batch_size,H,W,2] float32
-
-                x_adapt, _ = self.adapt_x(x)
-                y_adapt, y_adapt_info = self.adapt_y(y)
-                # x_adapt: [batch_size * self.num_gpus,2,H,W,3] float32 y_adapt: [batch_size,H,W,2] float32
-
-                # Run the sample through the network (metric op)
-                feed_dict = {self.x_tnsr: x_adapt, self.y_tnsr: y_adapt}
-                start_time = time.time()
-                y_hat = self.sess.run(self.y_hat_val_tnsr, feed_dict=feed_dict)
-                duration = time.time() - start_time
-                y_hats, metrics = self.postproc_y_hat_val(y_hat, y_adapt_info)
-
-                # Save the individual results in df
-                duration /= batch_size
-                for y_hat, metric, y_hat_path, ID in zip(y_hats, metrics, y_hat_paths, IDs):
-                    _, flow_mag_avg, flow_mag_max = flow_mag_stats(y_hat)
-                    df.loc[idx] = (ID, metric, duration, flow_mag_avg, flow_mag_max)
-                    if save_preds:
-                        flow_write(y_hat, y_hat_path)
-                        info=f"{metric_name}={metric:.2f}"
-                        flow_write_as_png(y_hat, y_hat_path.replace('.flo', '.png'), info=info)
-                    idx += 1
-
-            # Compute stats
-            avg_metric, avg_duration = df.loc[:, metric_name].mean(), df.loc[:, 'Duration'].mean()
+        # Compute stats
+        avg_metric, avg_duration = df.loc[:, metric_name].mean(), df.loc[:, 'Duration'].mean()
 
         # print(self.unique_y_shapes)
         return avg_metric, avg_duration, df
@@ -898,56 +897,56 @@ class ModelPWCNet(ModelBase):
             if return_preds is True, the predictions and their IDs are returned (might require a lot of RAM...)
             if return_preds is False, return None
         """
-        with self.graph.as_default():
-            # Use feed_dict from np or with tf.data.Dataset?
-            batch_size = self.opts['batch_size']
+    
+        # Use feed_dict from np or with tf.data.Dataset?
+        batch_size = self.opts['batch_size']
+        if self.opts['use_tf_data'] is True:
+            # Create tf.data.Dataset manager
+            tf_ds = self.ds.get_tf_ds(batch_size=batch_size, split='test', sess=self.sess)
+
+            # Ops for initializing the iterator
+            next_batch = tf_ds.make_one_shot_iterator().get_next()
+
+        # Chunk dataset
+        rounds, rounds_left = divmod(self.ds.tst_size, batch_size)
+        if rounds_left:
+            rounds += 1
+
+        # Loop through input samples and run inference on them
+        if return_preds is True:
+            preds, ids = [], []
+        desc = f'Predicting flows and saving preds' if save_preds else f'Predicting flows'
+        for _round in trange(rounds, ascii=True, ncols=100, desc=desc):
+
+            # Fetch and adapt sample
             if self.opts['use_tf_data'] is True:
-                # Create tf.data.Dataset manager
-                tf_ds = self.ds.get_tf_ds(batch_size=batch_size, split='test', sess=self.sess)
+                x, y_hat_paths, IDs = self.sess.run(next_batch)
+                y_hat_paths = [y_hat_path.decode() for y_hat_path in y_hat_paths]
+                IDs = [ID.decode() for ID in IDs]
+            else:
+                # Get a batch of samples and make them conform to the network's requirements
+                x, y_hat_paths, IDs = self.ds.next_batch(batch_size, split='test_with_pred_paths')
+                # x: [batch_size,2,H,W,3] uint8; x_adapt: [batch_size,2,H,W,3] float32
 
-                # Ops for initializing the iterator
-                next_batch = tf_ds.make_one_shot_iterator().get_next()
+            x_adapt, x_adapt_info = self.adapt_x(x)
+            if x_adapt_info is not None:
+                y_adapt_info = (x_adapt_info[0], x_adapt_info[2], x_adapt_info[3], 2)
+            else:
+                y_adapt_info = None
 
-            # Chunk dataset
-            rounds, rounds_left = divmod(self.ds.tst_size, batch_size)
-            if rounds_left:
-                rounds += 1
+            # Run the sample through the network
+            feed_dict = {self.x_tnsr: x_adapt}
+            y_hat = self.sess.run(self.y_hat_test_tnsr, feed_dict=feed_dict)
+            y_hats, _ = self.postproc_y_hat_test(y_hat, y_adapt_info)
 
-            # Loop through input samples and run inference on them
-            if return_preds is True:
-                preds, ids = [], []
-            desc = f'Predicting flows and saving preds' if save_preds else f'Predicting flows'
-            for _round in trange(rounds, ascii=True, ncols=100, desc=desc):
-
-                # Fetch and adapt sample
-                if self.opts['use_tf_data'] is True:
-                    x, y_hat_paths, IDs = self.sess.run(next_batch)
-                    y_hat_paths = [y_hat_path.decode() for y_hat_path in y_hat_paths]
-                    IDs = [ID.decode() for ID in IDs]
-                else:
-                    # Get a batch of samples and make them conform to the network's requirements
-                    x, y_hat_paths, IDs = self.ds.next_batch(batch_size, split='test_with_pred_paths')
-                    # x: [batch_size,2,H,W,3] uint8; x_adapt: [batch_size,2,H,W,3] float32
-
-                x_adapt, x_adapt_info = self.adapt_x(x)
-                if x_adapt_info is not None:
-                    y_adapt_info = (x_adapt_info[0], x_adapt_info[2], x_adapt_info[3], 2)
-                else:
-                    y_adapt_info = None
-
-                # Run the sample through the network
-                feed_dict = {self.x_tnsr: x_adapt}
-                y_hat = self.sess.run(self.y_hat_test_tnsr, feed_dict=feed_dict)
-                y_hats, _ = self.postproc_y_hat_test(y_hat, y_adapt_info)
-
-                # Save the predicted flows to disk, if requested
-                for y_hat, y_hat_path, ID in zip(y_hats, y_hat_paths, IDs):
-                    if return_preds is True:
-                        preds.append(y_hat)
-                        ids.append(ID)
-                    if save_preds is True:
-                        flow_write(y_hat, y_hat_path)
-                        flow_write_as_png(y_hat, y_hat_path.replace('.flo', '.png'))
+            # Save the predicted flows to disk, if requested
+            for y_hat, y_hat_path, ID in zip(y_hats, y_hat_paths, IDs):
+                if return_preds is True:
+                    preds.append(y_hat)
+                    ids.append(ID)
+                if save_preds is True:
+                    flow_write(y_hat, y_hat_path)
+                    flow_write_as_png(y_hat, y_hat_path.replace('.flo', '.png'))
 
         if return_preds is True:
             return preds[0:self.ds.tst_size], ids[0:self.ds.tst_size]
@@ -963,46 +962,46 @@ class ModelPWCNet(ModelBase):
         Returns:
             Predicted flows in list format
         """
-        with self.graph.as_default():
-            # Chunk image pair list
-            batch_size = self.opts['batch_size']
-            test_size = len(img_pairs)
-            rounds, rounds_left = divmod(test_size, batch_size)
-            if rounds_left:
-                rounds += 1
+    
+        # Chunk image pair list
+        batch_size = self.opts['batch_size']
+        test_size = len(img_pairs)
+        rounds, rounds_left = divmod(test_size, batch_size)
+        if rounds_left:
+            rounds += 1
 
-            # Loop through input samples and run inference on them
-            preds, test_ptr = [], 0
-            rng = trange(rounds, ascii=True, ncols=100, desc='Predicting flows') if verbose else range(rounds)
-            for _round in rng:
-                # In batch mode, make sure to wrap around if there aren't enough input samples to process
-                if test_ptr + batch_size < test_size:
-                    new_ptr = test_ptr + batch_size
-                    indices = list(range(test_ptr, test_ptr + batch_size))
-                else:
-                    new_ptr = (test_ptr + batch_size) % test_size
-                    indices = list(range(test_ptr, test_size)) + list(range(0, new_ptr))
-                test_ptr = new_ptr
+        # Loop through input samples and run inference on them
+        preds, test_ptr = [], 0
+        rng = trange(rounds, ascii=True, ncols=100, desc='Predicting flows') if verbose else range(rounds)
+        for _round in rng:
+            # In batch mode, make sure to wrap around if there aren't enough input samples to process
+            if test_ptr + batch_size < test_size:
+                new_ptr = test_ptr + batch_size
+                indices = list(range(test_ptr, test_ptr + batch_size))
+            else:
+                new_ptr = (test_ptr + batch_size) % test_size
+                indices = list(range(test_ptr, test_size)) + list(range(0, new_ptr))
+            test_ptr = new_ptr
 
-                # Repackage input image pairs as np.ndarray
-                x = np.array([img_pairs[idx] for idx in indices])
+            # Repackage input image pairs as np.ndarray
+            x = np.array([img_pairs[idx] for idx in indices])
 
-                # Make input samples conform to the network's requirements
-                # x: [batch_size,2,H,W,3] uint8; x_adapt: [batch_size,2,H,W,3] float32
-                x_adapt, x_adapt_info = self.adapt_x(x)
-                if x_adapt_info is not None:
-                    y_adapt_info = (x_adapt_info[0], x_adapt_info[2], x_adapt_info[3], 2)
-                else:
-                    y_adapt_info = None
+            # Make input samples conform to the network's requirements
+            # x: [batch_size,2,H,W,3] uint8; x_adapt: [batch_size,2,H,W,3] float32
+            x_adapt, x_adapt_info = self.adapt_x(x)
+            if x_adapt_info is not None:
+                y_adapt_info = (x_adapt_info[0], x_adapt_info[2], x_adapt_info[3], 2)
+            else:
+                y_adapt_info = None
 
-                # Run the adapted samples through the network
-                feed_dict = {self.x_tnsr: x_adapt}
-                y_hat = self.sess.run(self.y_hat_test_tnsr, feed_dict=feed_dict)
-                y_hats, _ = self.postproc_y_hat_test(y_hat, y_adapt_info)
+            # Run the adapted samples through the network
+            feed_dict = {self.x_tnsr: x_adapt}
+            y_hat = self.sess.run(self.y_hat_test_tnsr, feed_dict=feed_dict)
+            y_hats, _ = self.postproc_y_hat_test(y_hat, y_adapt_info)
 
-                # Return flat list of predicted labels
-                for y_hat in y_hats:
-                    preds.append(y_hat)
+            # Return flat list of predicted labels
+            for y_hat in y_hats:
+                preds.append(y_hat)
 
         return preds[0:test_size]
 

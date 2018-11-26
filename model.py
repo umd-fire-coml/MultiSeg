@@ -25,10 +25,14 @@ class MultiSeg(object):
         if mode == 'training':
             self._model = self._build_model(image_size, mrcnn_config, log_dir)
         else:
-            self._build_model(mrcnn_config, log_dir)
+            self._build_model(image_size, mrcnn_config, log_dir)
         
     def _build_model(self, image_size, mrcnn_config, log_dir: str) -> Optional[km.Model]:
-        
+        if self.mode == 'inference':
+            self.optical_flow = of.TensorFlowPWCNet(image_size)
+            self.image_seg = imgseg.MaskRCNN(mode=self.mode, config=mrcnn_config, model_dir=log_dir)
+            self.mask_refine = mr.MaskRefineSubnet(self.optical_flow)
+            
         if self.mode == 'training':
             prev_image = kl.Input((None, None, 3), )
             curr_image = kl.Input((None, None, 3), )
@@ -44,10 +48,6 @@ class MultiSeg(object):
             flow_field = of.TensorFlowPWCNet(image_size)
             
             return model
-        else:  # in inference mode
-            self.optical_flow = of.TensorFlowPWCNet(image_size)
-            self.image_seg = imgseg.MaskRCNN(mode=self.mode, config=mrcnn_config, model_dir=log_dir)
-            self.mask_refine = mr.MaskRefineSubnet()
 
     def predict_on_single_input(self, prev_image: np.ndarray, curr_image: np.ndarray) -> np.ndarray:
         if self.mode != 'inference':

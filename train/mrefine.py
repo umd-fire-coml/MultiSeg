@@ -158,17 +158,15 @@ elif cmd == COMMANDS['train']:
     pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=optical_flow_path,
                                verbose=print_debugs, gpu=device)
 
-    with pwc_net.graph.as_default():
-        with tf.device(f'/device:GPU:{device + 1}'):
-        
-            mr_subnet = MaskRefineSubnet(pwc_net)
-    
-            if mask_refine_path is not None:
-                mr_subnet.load_weights(mask_refine_path)
-    
-        printd('Starting MaskRefine training...')
+    with tf.device(f'/device:GPU:{device + 1}'):
+        mr_subnet = MaskRefineSubnet(pwc_net)
 
-        mr_subnet.train(train_gen, val_gen, epochs=epochs, steps_per_epoch=steps)
+        if mask_refine_path is not None:
+            mr_subnet.load_weights(mask_refine_path)
+
+    printd('Starting MaskRefine training...')
+
+    mr_subnet.train(train_gen, val_gen, epochs=epochs, steps_per_epoch=steps)
 elif cmd == COMMANDS['sizes']:
     warn_if_debugging_without_prints("sizes")
 
@@ -180,28 +178,28 @@ elif cmd == COMMANDS['sizes']:
 
     with tf.device(f'/device:GPU:{device}'):
         pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=optical_flow_path, verbose=print_debugs)
-        with pwc_net.graph.as_default():
-            mr_subnet = MaskRefineSubnet(pwc_net)
-    
-            input_stack = np.empty((1, 480, 854, 6))
-            output = mr_subnet.predict(input_stack)
-    
-            printd('INPUT/OUTPUT INFERENCE TESTS')
-            printd('MaskRefineSubnet:')
-            printd(f'Input Shape:\t{input_stack.shape}')
-            printd(f'Output Shape:\t{output.shape}')
-    
-            input_stack = np.empty((480, 854, 6))
-            output = pwc_net.infer_from_image_stack(input_stack)
-    
-            printd('PWCNet:')
-            printd(f'Input Shape:\t{input_stack.shape}')
-            printd(f'Output Shape:\t{output.shape}')
-    
-            input_stack = np.empty((480, 854, 7))
-            output = mr_subnet.predict(input_stack)
-    
-            printd('Entire Module:')
-            printd(f'Input Shape:\t{input_stack.shape}')
-            printd(f'Output Shape:\t{output.shape}')
+        
+        mr_subnet = MaskRefineSubnet(pwc_net)
+
+        input_stack = np.empty((1, 480, 854, 6))
+        output = mr_subnet.predict(input_stack)
+
+        printd('INPUT/OUTPUT INFERENCE TESTS')
+        printd('MaskRefineSubnet:')
+        printd(f'Input Shape:\t{input_stack.shape}')
+        printd(f'Output Shape:\t{output.shape}')
+
+        input_stack = np.empty((480, 854, 6))
+        output = pwc_net.infer_from_image_stack(input_stack)
+
+        printd('PWCNet:')
+        printd(f'Input Shape:\t{input_stack.shape}')
+        printd(f'Output Shape:\t{output.shape}')
+
+        input_stack = np.empty((480, 854, 7))
+        output = mr_subnet.predict(input_stack)
+
+        printd('Entire Module:')
+        printd(f'Input Shape:\t{input_stack.shape}')
+        printd(f'Output Shape:\t{output.shape}')
 

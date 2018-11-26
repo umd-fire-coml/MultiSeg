@@ -80,10 +80,6 @@ class TensorFlowPWCNet(OpticalFlowNetwork):
     def infer_from_image_stack(self, imgs):
         return self.infer_from_image_pair(imgs[..., :3], imgs[..., 3:])
 
-    @property
-    def graph(self):
-        return self.nn.graph
-
     def __call__(self, *args, **kwargs):
         raise NotImplemented("not yet implemented for tf pwcnet")
 

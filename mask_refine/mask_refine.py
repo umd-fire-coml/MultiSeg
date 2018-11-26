@@ -321,6 +321,15 @@ class MaskRefineSubnet:
 
         return self._model.predict(inputs, batch_size=1)
 
+    def evaluate(self, *inputs_and_outputs):
+        check_rank(*inputs_and_outputs, c_rank=4)
+        
+        return self._model.evaluate(inputs_and_outputs[:-1], inputs_and_outputs[-1])
+
+    @property
+    def metrics(self):
+        return self.metrics
+    
     def __call__(self, *args):
         return self._model(*args)
 
