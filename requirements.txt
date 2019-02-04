@@ -14,3 +14,4 @@ Pillow
 scikit-image
 scikit-learn
 scipy
+yaml

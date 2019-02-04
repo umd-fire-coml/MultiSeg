@@ -7,12 +7,10 @@ Commands Available:
     * augs - display the images of a dataset before and after augmentation
              (requires a matplotlib backend that supports display)
     * sizes - run each component of the module separate on fixed size inputs to
-              verify input and output tensor sizes/shapes
-    * infer - (WIP) predict an overall refined mask for an image pair from a
-              dataset (with augmentation, not with image segmentation integration)
+              verify expected input and output tensor shapes
               
-More information about the command line arguments can be found by running the
-command `python -m train.mrefine -h` from the root directory of this project.
+Information about the command line arguments can be found by running the
+command `python -m mask_refine.train -h` from the root directory of this project.
 """
 
 import argparse
@@ -23,6 +21,7 @@ import tensorflow as tf
 
 from train.davis2017_dataset import *
 from train.datautils import splitd
+from mask_refine.config import Configuration
 
 """
 Mapping from command description (key) to actual command line arguments (value).
@@ -30,7 +29,6 @@ Right now, they're all the same, but this dictionary is to provide
 forward-compatibility in case they can in future.
 """
 COMMANDS = {'train': 'train',
-            'infer': 'infer',
             'augs': 'augs',
             'sizes': 'sizes'
             }
@@ -57,54 +55,21 @@ parser.add_argument('cmd', choices=COMMANDS_LIST,
                     default=COMMANDS['train'],
                     help='Display plots of the augmented masks used for training',
                     )
-parser.add_argument('-d', '--dataset', dest='dataset_path', type=str,
-                    nargs=1,
-                    default=['G:\\Team Drives\\COML-Fall-2018\\T0-VidSeg\\Data\\DAVIS'],
-                    )
-parser.add_argument('-o', '--optical-flow', dest='optical_flow_path', type=str,
-                    nargs=1,
-                    default=['./opt_flow/models/pwcnet-lg-6-2-multisteps-chairsthingsmix/pwcnet.ckpt-595000'])
-parser.add_argument('-m', '--mask-refine', dest='mask_refine_path', type=str,
-                    nargs=1,
-                    default=[None])
-parser.add_argument('-v', '--validation-split', dest='val_split', type=float,
-                    nargs=1, default=[0.15])
-parser.add_argument('-e', '-epochssteps', dest='epochssteps', type=int,
-                    nargs=2, default=[100, 500])
-parser.add_argument('-p', '--print-debugs', dest='print_debugs', action='store_true')
-parser.add_argument('--gpu', dest='device', type=int, nargs=1, default=[0])
 
 ############################################################################
 
 args = parser.parse_args()
 
 cmd = args.cmd
-dataset_path = args.dataset_path[0]
-optical_flow_path = args.optical_flow_path[0]
-mask_refine_path = args.mask_refine_path[0]
-val_split = args.val_split[0]
-epochs = args.epochssteps[0]
-steps = args.epochssteps[1]
-print_debugs = args.print_debugs
-device = args.device[0]
 
-print('Arguments given to trainmaskrefine command: ')
-print(f'\tcommand\t{cmd}')
-print(f'\tdataset\t{dataset_path}')
-print(f'\toptical\t{optical_flow_path}')
-print(f'\tmrefine\t{mask_refine_path}')
-print(f'\tv split\t{val_split}')
-print(f'\tepochs\t{epochs}')
-print(f'\tsteps\t{steps}')
-print(f'\tdebugs\t{print_debugs}')
-print(f'\tdevice\tGPU:{device}')
-print()
+config = Configuration()
+config.summary()
 
 
 def printd(string):
     """Debugging print wrapper."""
     
-    if print_debugs:
+    if config.debugging:
         print(string)
 
 
@@ -118,7 +83,7 @@ def warn_if_debugging_without_prints(command):
     """
     
     # if printing debugs, then it's fine
-    if print_debugs:
+    if config.debugging:
         return
     
     # warn when not printing debugs
@@ -133,7 +98,7 @@ def warn_if_debugging_without_prints(command):
 ############################################################################
 
 if cmd == COMMANDS['augs']:
-    dataset = get_trainval(dataset_path)
+    dataset = get_trainval(config.dataset_path)
 
     gen = dataset.paired_generator(AUG_SEQ)
 
@@ -150,23 +115,23 @@ elif cmd == COMMANDS['train']:
     from opt_flow.opt_flow import TensorFlowPWCNet
     from mask_refine.mask_refine import MaskRefineSubnet
 
-    dataset = get_trainval(dataset_path)
+    dataset = get_trainval(config.dataset_path)
 
-    train, val = splitd(dataset, 1 - val_split, val_split, shuffle=False)
+    train, val = splitd(*config.splits, shuffle=False)
     train_gen, val_gen = train.paired_generator(AUG_SEQ), val.paired_generator(AUG_SEQ)
 
-    pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=optical_flow_path,
-                               verbose=print_debugs, gpu=device)
+    pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=config.optical_flow_path,
+                               verbose=config.debugging, gpu=config.optical_flow_device)
 
     with tf.device(f'/device:GPU:{device + 1}'):
         mr_subnet = MaskRefineSubnet(pwc_net)
 
-        if mask_refine_path is not None:
-            mr_subnet.load_weights(mask_refine_path)
+        if config.mask_refine_path is not None:
+            mr_subnet.load_weights(config.mask_refine_path)
 
     printd('Starting MaskRefine training...')
 
-    mr_subnet.train(train_gen, val_gen, epochs=epochs, steps_per_epoch=steps)
+    mr_subnet.train(train_gen, val_gen, epochs=config.epochs_per_run, steps_per_epoch=config.steps_per_epoch)
 elif cmd == COMMANDS['sizes']:
     warn_if_debugging_without_prints("sizes")
 
@@ -174,13 +139,13 @@ elif cmd == COMMANDS['sizes']:
     from mask_refine.mask_refine import MaskRefineSubnet
     import numpy as np
 
-    dataset = get_trainval(dataset_path)
+    dataset = get_trainval(config.dataset_path)
 
-    with tf.device(f'/device:GPU:{device}'):
-        pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=optical_flow_path, verbose=print_debugs)
+    with tf.device(config.model_device):
+        pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=config.optical_flow_path, verbose=config.debugging)
         
         mr_subnet = MaskRefineSubnet(pwc_net)
-
+        
         input_stack = np.empty((1, 480, 854, 6))
         output = mr_subnet.predict(input_stack)
 
