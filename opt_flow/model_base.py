@@ -29,13 +29,6 @@ class ModelBase:
             mode: Must be in ['train_noval', 'val', 'train_with_val', 'test']
             session: optional TF session
             options: see _DEFAULT_PWCNET_TRAIN_OPTIONS comments
-        Mote:
-            As explained [here](https://stackoverflow.com/a/36282423), you don't need to use with blocks if you only
-            have one default graph and one default session. However, we sometimes create notebooks where we pit the
-            performance of models against each other. Because of that, we need the with block.
-            # tf.reset_default_graph()
-            # self.graph = tf.Graph()
-            # with self.graph.as_default():
         """
         assert(mode in ['train_noval', 'train_with_val', 'val', 'val_notrain', 'test'])
         self.mode, self.sess, self.opts = mode, session, options
@@ -341,19 +334,19 @@ class ModelBase:
             - How to count total number of trainable parameters in a tensorflow model?
             https://stackoverflow.com/questions/38160940/how-to-count-total-number-of-trainable-parameters-in-a-tensorflow-model
         """
-        with self.graph.as_default():
-            print("\nModel Configuration:")
-            for k, v in self.opts.items():
-                if self.mode in ['train_noval', 'train_with_val']:
-                    if self.opts['lr_policy'] == 'multisteps':
-                        if k in ['init_lr', 'cyclic_lr_max', 'cyclic_lr_base', 'cyclic_lr_stepsize']:
-                            continue
-                    if self.opts['lr_policy'] == 'cyclic':
-                        if k in ['init_lr', 'lr_boundaries', 'lr_values']:
-                            continue
-                print(f"  {k:22} {v}")
-            print(f"  {'mode':22} {self.mode}")
-            # if self.mode in ['train_noval', 'train_with_val']:
-            if self.dbg:
-                self.summary()
-            print(f"  {'trainable params':22} {np.sum([np.prod(v.shape) for v in tf.trainable_variables()])}")
+    
+        print("\nModel Configuration:")
+        for k, v in self.opts.items():
+            if self.mode in ['train_noval', 'train_with_val']:
+                if self.opts['lr_policy'] == 'multisteps':
+                    if k in ['init_lr', 'cyclic_lr_max', 'cyclic_lr_base', 'cyclic_lr_stepsize']:
+                        continue
+                if self.opts['lr_policy'] == 'cyclic':
+                    if k in ['init_lr', 'lr_boundaries', 'lr_values']:
+                        continue
+            print(f"  {k:22} {v}")
+        print(f"  {'mode':22} {self.mode}")
+        # if self.mode in ['train_noval', 'train_with_val']:
+        if self.dbg:
+            self.summary()
+        print(f"  {'trainable params':22} {np.sum([np.prod(v.shape) for v in tf.trainable_variables()])}")
