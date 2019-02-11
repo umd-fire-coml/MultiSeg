@@ -9,7 +9,7 @@ import numpy as np
 from typing import List, Iterable, Optional
 
 import image_seg.model as imgseg
-import mask_refine.mask_refine as mr
+import mask_refine.model as mr
 import opt_flow.opt_flow as of
 
 

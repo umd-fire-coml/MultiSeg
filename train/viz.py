@@ -39,7 +39,7 @@ def vis_fill(*imgs, rows=2, cols=2, titles: List[str] = None, save_path=None, **
     i = 0
     for row in range(rows):
         for col in range(cols):
-            if imgs[i]:
+            if imgs[i] is not None:
                 axes[row][col].imshow(imgs[i])
                 if titles is not None and i < len(titles):
                     axes[row][col].set_title(titles[i])
@@ -137,7 +137,7 @@ def vis_square(*imgs, titles: List[str] = None, **kwargs):
         **kwargs: arguments to be passed to the figure
     """
     n = len(imgs)
-    rows, cols = floor(sqrt(n)), ceil(sqrt(n))
+    rows, cols = ceil(sqrt(n)), ceil(sqrt(n))
 
     vis_fill(*imgs, rows=rows, cols=cols, titles=titles, **kwargs)
 

@@ -1,8 +1,9 @@
 dataset_path: G:\Team Drives\COML-Fall-2018\T0-VidSeg\Data\DAVIS
 debugging: true
-epochs_per_run: 60
+epochs_per_run: 100
+mask_refine_path: null
 model_device: /device:GPU:1
 optical_flow_device: /device:GPU:0
 optical_flow_path: ./opt_flow/models/pwcnet-lg-6-2-multisteps-chairsthingsmix/pwcnet.ckpt-595000
 splits: [0.85, 0.15]
-steps_per_epoch: 200
+steps_per_epoch: 500

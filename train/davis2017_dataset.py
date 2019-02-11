@@ -226,29 +226,28 @@ class Davis2017Dataset(utils.Dataset):
         except AttributeError:
             return '<Davis 2017 Dataset (unprepared)>'
 
-    def paired_generator(self, augmentation=iaa.Noop(), mask_as_input=True, max_pair_dist=10):
+    def paired_generator(self, augmentation=iaa.Noop(), mask_as_input=True, max_pair_dist=3):
         """
         Creates a generator that returns pairs of consecutive images (as input)
         and the mask for the second image (as ground truth).
         Args:
             augmentation: sequence of imgaug augmentations to perform on each
-            mask to transform it into an input mask
-            mask_as_input:
-            max_pair_dist:
+                          mask to transform it into an input mask (ignored if
+                          mask_as_input is False)
+            mask_as_input: whether to return an augmented mask as an input
+            max_pair_dist: the maximum number of frames apart between two images
+                           in the same pair
 
         Returns:
-
-        """
-        """ TODO different batch sizes?
-        Creates generator that returns pairs of consecutive images (as input)
-        and the mask for the second image (as ground truth).
-        :param augmentation: augmentations to perform on each mask (as input)
-        :param mask_as_input: whether to add a mask as part of the input stack
-        :param max_pair_dist: maximum distance between 2 images (in a pair)
-        If mask_as_input is False, mask_augs is ignored.
-
-        X: previous image, current image, (mask as input)
-        y: ground truth mask
+            inputs as requested (see details below)
+        
+        If mask_as_input is True, then the following are returned in this order:
+        previous image      [1, h, w, 3]
+        current image       [1, h, w, 3]
+        augmented mask      [1, h, w, 1]   (excluded if mask_as_input is False)
+        ground-truth mask   [1, h, w, 1]
+        All returned arrays are of type np.float32 and have values normalized
+        in the range [0,1].
         """
 
         def make_batch_dim(tensor):
@@ -294,11 +293,13 @@ class Davis2017Dataset(utils.Dataset):
                 id_pair_queue.appendleft(sentinel)
                 continue
 
-            # load originals
-            prev_image = self.load_image(prev_id)
-            curr_image = self.load_image(curr_id)
+            # load originals (and transform to [0, 1] range)
+            prev_image = self.load_image(prev_id).astype(np.float32) / 255
+            curr_image = self.load_image(curr_id).astype(np.float32) / 255
             gt_masks, _ = self.load_float_mask(curr_id)
+            
             pre_aug_masks, _ = self.load_int_mask(curr_id)
+            pre_aug_masks = pre_aug_masks.astype(np.uint8)
 
             # generate a pair for each mask instance
             for i in range(gt_masks.shape[-1]):
@@ -308,11 +309,11 @@ class Davis2017Dataset(utils.Dataset):
                     aug_for_this = augmentation.to_deterministic()
 
                     aug_mask = np.expand_dims(pre_aug_masks[..., i], axis=2)
-                    aug_mask = aug_for_this.augment_image(aug_mask)
+                    aug_mask = aug_for_this.augment_image(aug_mask).astype(np.float32) / 255
 
-                    yield map(make_batch_dim, (prev_image, curr_image, aug_mask, gt_mask))
+                    yield tuple(map(make_batch_dim, (prev_image, curr_image, aug_mask, gt_mask)))
                 else:
-                    yield map(make_batch_dim, (prev_image, curr_image, gt_mask))
+                    yield tuple(map(make_batch_dim, (prev_image, curr_image, gt_mask)))
 
             # add the image to the back of the queue
             id_pair_queue.appendleft(curr_id)
@@ -399,6 +400,7 @@ def get_trainval(root_dir, quality='480p') -> Davis2017Dataset:
     :param quality: {_quality_param_desc}
     :return: trainval dataset for quality requested
     """
+    # TODO produce validation set separately
 
     return _load_predefined(root_dir, 'trainval', quality)
 

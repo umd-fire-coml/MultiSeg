@@ -15,7 +15,7 @@ Here is a diagram of the process:
 <div style="text-align:center"><img src ="https://github.com/umd-fire-coml/MultiSeg/raw/master/mask_refine/mask_refine_diagram.png" /></div>
 
 ## What this directory contains
-* [Mask Refine](./mask_refine.py) - Current Mask Refine module
+* [Mask Refine](model.py) - Current Mask Refine module
 * [Mask Propagation](./mask_propagation.py) - Old Mask Refine module - DO NOT USE - it is here for reference
 * [__init__.py](./__init__.py) - Just there for Python packaging
 * [README.md](./README.md) - This file!

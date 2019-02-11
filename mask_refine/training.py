@@ -15,8 +15,7 @@ command `python -m mask_refine.train -h` from the root directory of this project
 
 import argparse
 import imgaug.augmenters as iaa
-import sys
-from warnings import warn
+import numpy as np
 import tensorflow as tf
 
 from train.davis2017_dataset import *
@@ -30,9 +29,9 @@ forward-compatibility in case they can in future.
 """
 COMMANDS = {'train': 'train',
             'augs': 'augs',
-            'sizes': 'sizes'
+            'sizes': 'sizes',
+            'null': 'null'
             }
-COMMANDS_LIST = list(COMMANDS.values())
 
 """
 Sequence of imgaug augmentations applied to ground truth masks to transform
@@ -46,74 +45,43 @@ AUG_SEQ = iaa.Sequential([
         iaa.MultiplyElementwise((0.8, 1.1)),
         iaa.Sometimes(0.05, iaa.GaussianBlur(sigma=(5, 100))),
         iaa.Sometimes(0.25, iaa.AdditiveGaussianNoise(scale=(1, 15)))
-    ])
+])
 
 
 # PARSE COMMAND LINE ARGUMENTS
 parser = argparse.ArgumentParser()
-parser.add_argument('cmd', choices=COMMANDS_LIST,
-                    default=COMMANDS['train'],
-                    help='Display plots of the augmented masks used for training',
-                    )
+parser.add_argument('cmd', choices=COMMANDS.keys(), default=COMMANDS['train'])
+parser.add_argument('--config', '-c', action='store', default=None, dest='config_path',
+                    help='path of the config file, defaults to ./config.yaml')
 
-############################################################################
 
 args = parser.parse_args()
-
 cmd = args.cmd
+config_path = args.config_path
 
-config = Configuration()
+config = Configuration(config_path) if config_path is not None else Configuration()
 config.summary()
-
-
-def printd(string):
-    """Debugging print wrapper."""
-    
-    if config.debugging:
-        print(string)
-
-
-def warn_if_debugging_without_prints(command):
-    """
-    Warn if running a debugging command (e.g. sizes) without debugging statements.
-    If the user doesn't wish to continue, the system will exit.
-
-    Args:
-        command: name of the debugging command
-    """
-    
-    # if printing debugs, then it's fine
-    if config.debugging:
-        return
-    
-    # warn when not printing debugs
-    warn(f'\'{command}\' is a debugging command, but debugs are not printed. (Use -p or -print-debugs to output.)')
-    response = input('Are you sure you want to continue? [y/n] ')
-    if 'y' not in response.strip().lower():
-        sys.exit()
-    else:
-        printd('Continuing...')
 
 
 ############################################################################
 
 if cmd == COMMANDS['augs']:
-    dataset = get_trainval(config.dataset_path)
+    from train.viz import vis_square
 
-    gen = dataset.paired_generator(AUG_SEQ)
+    for inputs in get_trainval(config.dataset_path).paired_generator(AUG_SEQ):
+        imgs = list(inputs)
 
-    for X, y in gen:
-        import matplotlib.pyplot as plt
+        # strip the extra dimensions and scale to image-expected ranges
+        imgs[0] = (imgs[0][0, ...] * 255).astype(np.uint8)
+        imgs[1] = (imgs[1][0, ...] * 255).astype(np.uint8)
+        imgs[2] = (imgs[2][0, ..., 0] * 255).astype(np.uint8)
+        imgs[3] = (imgs[3][0, ..., 0] * 255).astype(np.uint8)
 
-        printd(f'X.shape: {X.shape}, y.shape: {y.shape}')
-
-        plt.imshow(X[..., 6].astype(int))
-        plt.show()
-        plt.imshow(y[..., 0])
-        plt.show()
+        vis_square(*imgs, titles=['prev', 'curr', 'aug', 'gt'])
+        
 elif cmd == COMMANDS['train']:
     from opt_flow.opt_flow import TensorFlowPWCNet
-    from mask_refine.mask_refine import MaskRefineSubnet
+    from mask_refine.model import MaskRefineSubnet
 
     dataset = get_trainval(config.dataset_path)
 
@@ -123,48 +91,35 @@ elif cmd == COMMANDS['train']:
     pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=config.optical_flow_path,
                                verbose=config.debugging, gpu=config.optical_flow_device)
 
-    with tf.device(f'/device:GPU:{device + 1}'):
+    with tf.device(config.model_device):
         mr_subnet = MaskRefineSubnet(pwc_net)
 
         if config.mask_refine_path is not None:
             mr_subnet.load_weights(config.mask_refine_path)
 
-    printd('Starting MaskRefine training...')
+    print('Starting MaskRefine training...')
 
     mr_subnet.train(train_gen, val_gen, epochs=config.epochs_per_run, steps_per_epoch=config.steps_per_epoch)
 elif cmd == COMMANDS['sizes']:
-    warn_if_debugging_without_prints("sizes")
-
     from opt_flow.opt_flow import TensorFlowPWCNet
-    from mask_refine.mask_refine import MaskRefineSubnet
+    from mask_refine.model import MaskRefineSubnet
     import numpy as np
+    
+    def run_size_test(name, inputs, predictor):
+        outputs = predictor(inputs)
+        
+        print(f'{name}:')
+        print(f'Input Shape:\t{inputs.shape}')
+        print(f'Output Shape:\t{outputs.shape}')
 
     dataset = get_trainval(config.dataset_path)
 
     with tf.device(config.model_device):
         pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=config.optical_flow_path, verbose=config.debugging)
-        
         mr_subnet = MaskRefineSubnet(pwc_net)
         
-        input_stack = np.empty((1, 480, 854, 6))
-        output = mr_subnet.predict(input_stack)
-
-        printd('INPUT/OUTPUT INFERENCE TESTS')
-        printd('MaskRefineSubnet:')
-        printd(f'Input Shape:\t{input_stack.shape}')
-        printd(f'Output Shape:\t{output.shape}')
-
-        input_stack = np.empty((480, 854, 6))
-        output = pwc_net.infer_from_image_stack(input_stack)
-
-        printd('PWCNet:')
-        printd(f'Input Shape:\t{input_stack.shape}')
-        printd(f'Output Shape:\t{output.shape}')
-
-        input_stack = np.empty((480, 854, 7))
-        output = mr_subnet.predict(input_stack)
-
-        printd('Entire Module:')
-        printd(f'Input Shape:\t{input_stack.shape}')
-        printd(f'Output Shape:\t{output.shape}')
+        run_size_test('MaskRefineSubnet', np.empty((1, 480, 854, 6)), mr_subnet.predict)
+        run_size_test('PWCNet', np.empty((480, 854, 6)), pwc_net.infer_from_image_stack)
+else:
+    print('\nDebugging run completed (no training done).')
 
