@@ -106,13 +106,15 @@ def check_rank(*tensors: Union[Iterable[np.ndarray], np.ndarray], c_rank):
             raise ValueError(f'input must have rank {c_rank} (provided: {rank(tensor)})')
 
 
-def pad64(tensor, image_dims=(0, 1)):
+def pad64(tensor, image_dims=(1, 2)):
     """
     Pads an image with zeros to the next largest multiple of 64, centering the
     image as much as possible.
     
     Args:
         tensor: image to pad
+        image_dims: iterable of image dimensions to pad (other dimensions
+                    unchanged); this should be a 2-element iterable
 
     Returns:
         padded image with dimensions that are multiples of 64
@@ -120,8 +122,9 @@ def pad64(tensor, image_dims=(0, 1)):
     TODO make this more extensible
     """
     # pads images with zeros to the next largest multiple of 64 (center fix)
-    h_, w_ = math.ceil(tensor.shape[1] / 64) * 64, math.ceil(tensor.shape[2] / 64) * 64
-    h_pad, w_pad = h_ - tensor.shape[1], w_ - tensor.shape[2]
+    h_, w_ = math.ceil(tensor.shape[image_dims[0]] / 64) * 64, math.ceil(tensor.shape[image_dims[1]] / 64) * 64
+    h_pad, w_pad = h_ - tensor.shape[image_dims[0]], w_ - tensor.shape[image_dims[1]]
+    # TODO output tuple is not dependent on image_dims --> this code is FRAGILE
     return np.pad(tensor, ((0, 0),
                            (math.floor(h_pad / 2), math.ceil(h_pad / 2)),
                            (math.floor(w_pad / 2), math.ceil(w_pad / 2)),
@@ -161,9 +164,9 @@ class MaskRefineSubnet:
         deconvolutions instead of 2x2 up-sampling.
         """
         
-        input_image = Input((None, None, 3))
-        input_masks = Input((None, None, 1))
-        input_flow_field = Input((None, None, 2))
+        input_image = Input((None, None, 3), dtype=np.float32)
+        input_masks = Input((None, None, 1), dtype=np.float32)
+        input_flow_field = Input((None, None, 2))  # TODO check datatype (and range)
         
         inputs = _concat()([input_image, input_masks, input_flow_field])
         

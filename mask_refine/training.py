@@ -52,7 +52,7 @@ AUG_SEQ = iaa.Sequential([
 parser = argparse.ArgumentParser()
 parser.add_argument('cmd', choices=COMMANDS.keys(), default=COMMANDS['train'])
 parser.add_argument('--config', '-c', action='store', default=None, dest='config_path',
-                    help='path of the config file, defaults to ./config.yaml')
+                    help='path of the config file, defaults to \'./config.yaml\'')
 
 
 args = parser.parse_args()
