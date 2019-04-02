@@ -18,7 +18,7 @@ import imgaug.augmenters as iaa
 import numpy as np
 import tensorflow as tf
 
-from train.davis2017_dataset import *
+from train.davis2017 import *
 from train.datautils import splitd
 from mask_refine.config import Configuration
 

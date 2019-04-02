@@ -1,6 +1,6 @@
 """
 Mask R-CNN
-The main Mask R-CNN model implemenetation.
+The main Mask R-CNN model implementation.
 Copyright (c) 2017 Matterport, Inc.
 Licensed under the MIT License (see LICENSE for details)
 Written by Waleed Abdulla
@@ -328,7 +328,7 @@ class ProposalLayer(KE.Layer):
         return proposals
 
     def compute_output_shape(self, input_shape):
-        return (None, self.proposal_count, 4)
+        return None, self.proposal_count, 4
 
 
 ############################################################
@@ -336,7 +336,7 @@ class ProposalLayer(KE.Layer):
 ############################################################
 
 def log2_graph(x):
-    """Implementatin of Log2. TF doesn't have a native implemenation."""
+    """Implementatin of Log2. TF doesn't have a native implementation."""
     return tf.log(x) / tf.log(2.0)
 
 
@@ -822,7 +822,7 @@ class DetectionLayer(KE.Layer):
             [self.config.BATCH_SIZE, self.config.DETECTION_MAX_INSTANCES, 6])
 
     def compute_output_shape(self, input_shape):
-        return (None, self.config.DETECTION_MAX_INSTANCES, 6)
+        return None, self.config.DETECTION_MAX_INSTANCES, 6
 
 
 ############################################################
@@ -843,8 +843,7 @@ def rpn_graph(feature_map, anchors_per_location, anchor_stride):
         rpn_bbox: [batch, H, W, (dy, dx, log(dh), log(dw))] Deltas to be
                   applied to anchors.
     """
-    # TODO: check if stride of 2 causes alignment issues if the featuremap
-    #       is not even.
+    # TODO: check if stride of 2 causes alignment issues if the feature map is not even.
     # Shared convolutional base of the RPN
     shared = KL.Conv2D(512, (3, 3), padding='same', activation='relu',
                        strides=anchor_stride,
@@ -2722,27 +2721,31 @@ class MaskRCNN:
 
 def compose_image_meta(image_id, original_image_shape, image_shape,
                        window, scale, active_class_ids):
-    """Takes attributes of an image and puts them in one 1D array.
-
-    image_id: An int ID of the image. Useful for debugging.
-    original_image_shape: [H, W, C] before resizing or padding.
-    image_shape: [H, W, C] after resizing and padding
-    window: (y1, x1, y2, x2) in pixels. The area of the image where the real
-            image is (excluding the padding)
-    scale: The scaling factor applied to the original image (float32)
-    active_class_ids: List of class_ids available in the dataset from which
-        the image came. Useful if training on images from multiple datasets
-        where not all classes are present in all datasets.
     """
-    meta = np.array(
+    Puts attributes of an image into a 1D array.
+    
+    Args:
+        image_id: integer ID of the image
+        original_image_shape: original [h, w, c] shape of the image (before
+                              resizing or padding)
+        image_shape: [h, w, c] shape of the image after resizing and padding
+        window: (y1, x1, y2, x2) area in pixels where the image is centered (in
+                the padded image)
+        scale: scaling factor applied to the image
+        active_class_ids: list of class ids available in the originating dataset
+
+    Returns:
+        1D array containing attributes in the order given, of length 12 + num classes
+    """
+    
+    return np.array(
         [image_id] +                  # size=1
         list(original_image_shape) +  # size=3
         list(image_shape) +           # size=3
-        list(window) +                # size=4 (y1, x1, y2, x2) in image cooredinates
+        list(window) +                # size=4 (y1, x1, y2, x2) in image coordinates
         [scale] +                     # size=1
         list(active_class_ids)        # size=num_classes
     )
-    return meta
 
 
 def parse_image_meta(meta):
@@ -2756,7 +2759,7 @@ def parse_image_meta(meta):
     image_id = meta[:, 0]
     original_image_shape = meta[:, 1:4]
     image_shape = meta[:, 4:7]
-    window = meta[:, 7:11]  # (y1, x1, y2, x2) window of image in in pixels
+    window = meta[:, 7:11]
     scale = meta[:, 11]
     active_class_ids = meta[:, 12:]
     return {
@@ -2811,7 +2814,7 @@ def unmold_image(normalized_images, config):
 ############################################################
 
 def trim_zeros_graph(boxes, name=None):
-    """Often boxes are represented with matricies of shape [N, 4] and
+    """Often boxes are represented with matrices of shape [N, 4] and
     are padded with zeros. This removes zero boxes.
 
     boxes: [N, 4] matrix of boxes.

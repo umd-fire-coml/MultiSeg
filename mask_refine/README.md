@@ -12,12 +12,11 @@ from the previous image to the current image.
 current image through a U-Net to get the refined mask the same object in the current image.
 
 Here is a diagram of the process:
-<div style="text-align:center"><img src ="https://github.com/umd-fire-coml/MultiSeg/raw/master/mask_refine/mask_refine_diagram.png" /></div>
+![](mask_refine_diagram.png)
 
 ## What this directory contains
 * [Mask Refine](model.py) - Current Mask Refine module
 * [Mask Propagation](./mask_propagation.py) - Old Mask Refine module - DO NOT USE - it is here for reference
-* [__init__.py](./__init__.py) - Just there for Python packaging
 * [README.md](./README.md) - This file!
 
 ## What to do BEFORE using this directory
@@ -31,7 +30,7 @@ if the requirements.txt in the root directory are all installed via the setup.py
 
 ## How to run the demo
 
-Open the [demo_mask_refine.ipynb](../demo_mask_refine.ipynb) notebook and run block by block!
+Open the [demo_mask_refine.ipynb](../evaluate/demo_mask_refine.ipynb) notebook and run block by block!
 Note: the notebook is in the root directory of the repository because it needs access to files
 outside of this directory.
 

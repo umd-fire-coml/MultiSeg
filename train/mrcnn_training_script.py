@@ -43,7 +43,8 @@ sys.path.append(MRCNN_DIR)
 
 import image_seg.model as modellib
 
-from train.wad_dataset import WadConfig, WadDataset
+from train.wad import WadConfig, WadDataset
+from train.datautils import splitd
 
 cfg = WadConfig()
 cfg.IMAGES_PER_GPU = 2
@@ -51,11 +52,10 @@ cfg.STEPS_PER_EPOCH = train_steps
 cfg.VALIDATION_STEPS = val_steps
 cfg.display()
 
-dataset_train = WadDataset()
-dataset_val = dataset_train.load_data(DATA_DIR, "train", val_size=val_size)  # TODO fix with new splitting mechanism
-
-dataset_train.prepare()
-dataset_val.prepare()
+dataset = WadDataset()
+dataset.load_data(DATA_DIR, "train")
+dataset.prepare()
+dataset_train, dataset_val = splitd(dataset, val_size)
 
 ##############################################################################
 #

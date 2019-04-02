@@ -40,7 +40,7 @@ def _batchnorm():
     return BatchNormalization()
 
 
-# functional blocks
+# functional blocks for U-Net
 def _down_block(input_layer, filters, n, convs=2):
     assert convs > 0
     

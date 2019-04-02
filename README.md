@@ -96,12 +96,12 @@ dependencies and have in the right location (or change the path in the code).
 inference section of each notebook, and a new random image will be chosen.
 
 #### Instance Segmentation (Matterport implementation of Mask R-CNN)
-Notebook: [Instance Segmentation Notebook](demo_image_seg.ipynb)
+Notebook: [Instance Segmentation Notebook](evaluate/demo_image_seg.ipynb)
 
 Dataset: CVPR WAD 2018
 
 #### Mask Refine
-Notebook: [Mask Refine Demo Notebook](demo_mask_refine.ipynb)
+Notebook: [Mask Refine Demo Notebook](evaluate/demo_mask_refine.ipynb)
 
 Dataset: DAVIS 2017
 

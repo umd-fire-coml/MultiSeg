@@ -91,6 +91,7 @@ class Davis2017Dataset(utils.Dataset):
 
         if not len(videos):
             _, videos, _ = next(os.walk(self.build_absolute_path_to('images', '')))
+            # FIXME there should be an error in logic here
 
         for vid in videos:
             self.load_video(vid)
@@ -226,7 +227,7 @@ class Davis2017Dataset(utils.Dataset):
         except AttributeError:
             return '<Davis 2017 Dataset (unprepared)>'
 
-    def paired_generator(self, augmentation=iaa.Noop(), mask_as_input=True, max_pair_dist=3):
+    def paired_generator(self, augmentation=iaa.Noop(), training=True, max_pair_dist=3):
         """
         Creates a generator that returns pairs of consecutive images (as input)
         and the mask for the second image (as ground truth).
@@ -234,7 +235,8 @@ class Davis2017Dataset(utils.Dataset):
             augmentation: sequence of imgaug augmentations to perform on each
                           mask to transform it into an input mask (ignored if
                           mask_as_input is False)
-            mask_as_input: whether to return an augmented mask as an input
+            training: whether to return an augmented mask as an input and
+                      normalize inputs
             max_pair_dist: the maximum number of frames apart between two images
                            in the same pair
 
@@ -246,8 +248,8 @@ class Davis2017Dataset(utils.Dataset):
         current image       [1, h, w, 3]
         augmented mask      [1, h, w, 1]   (excluded if mask_as_input is False)
         ground-truth mask   [1, h, w, 1]
-        All returned arrays are of type np.float32 and have values normalized
-        in the range [0,1].
+        All returned arrays are of type np.float32. Values are normalized to
+        [0, 1] if training is False and mean-centered if training is True.
         """
 
         def make_batch_dim(tensor):
@@ -305,7 +307,7 @@ class Davis2017Dataset(utils.Dataset):
             for i in range(gt_masks.shape[-1]):
                 gt_mask = np.expand_dims(gt_masks[..., i], axis=2)
                 
-                if mask_as_input:
+                if training:
                     aug_for_this = augmentation.to_deterministic()
 
                     aug_mask = np.expand_dims(pre_aug_masks[..., i], axis=2)
