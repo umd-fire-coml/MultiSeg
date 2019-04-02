@@ -63,21 +63,15 @@ dataset_train, dataset_val = splitd(dataset, val_size)
 #
 ##############################################################################
 
-we_should_train = True
 
-if we_should_train:
-    model = modellib.MaskRCNN(mode="training", config=cfg, model_dir=MODEL_DIR)
+model = modellib.MaskRCNN(mode="training", config=cfg, model_dir=MODEL_DIR)
 
-    model.load_weights('mask_rcnn_coco.h5', by_name=True, exclude=[
-        "mrcnn_class_logits", "mrcnn_bbox_fc", "mrcnn_bbox", "mrcnn_mask"])
+model.load_weights('mask_rcnn_coco.h5', by_name=True, exclude=[
+    "mrcnn_class_logits", "mrcnn_bbox_fc", "mrcnn_bbox", "mrcnn_mask"])
 
-    ##########################################################################
-    #
-    #  train Heads
-    #
-    ##########################################################################
 
-    model.train(dataset_train, dataset_val,
-                learning_rate=cfg.LEARNING_RATE,
-                epochs=num_epochs,
-                layers='heads')
+# training of network heads
+model.train(dataset_train, dataset_val,
+            learning_rate=cfg.LEARNING_RATE,
+            epochs=num_epochs,
+            layers='heads')

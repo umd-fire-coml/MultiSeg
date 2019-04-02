@@ -10,9 +10,10 @@ imgaug
 IPython[all]
 matplotlib
 opencv-python
-Pillow
+pillow
+pandas
+pytest
+pyyaml
 scikit-image
 scikit-learn
 scipy
-pyyaml
-pandas

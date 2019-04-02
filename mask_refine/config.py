@@ -33,8 +33,9 @@ empty_mask_refine_config = Configuration({
     'optical_flow_path': None,
     'mask_refine_path': None,
     'splits': [.80, .20],  # can be 0-2 elements
-    'epochs_per_run':  100,
+    'epochs':  100,
     'steps_per_epoch': 150,
+    'val_steps_per_epoch': 150,
     'debugging': True,
     'optical_flow_device': '/device:CPU:0',
     'model_device': '/device:CPU:0'

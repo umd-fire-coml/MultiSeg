@@ -69,6 +69,8 @@ if cmd == COMMANDS['augs']:
     from train.viz import vis_square
 
     for inputs in get_trainval(config.dataset_path).paired_generator(AUG_SEQ):
+        assert len(inputs) == 4
+        
         imgs = list(inputs)
 
         # strip the extra dimensions and scale to image-expected ranges
@@ -81,7 +83,7 @@ if cmd == COMMANDS['augs']:
         
 elif cmd == COMMANDS['train']:
     from opt_flow.opt_flow import TensorFlowPWCNet
-    from mask_refine.model import MaskRefineSubnet
+    from mask_refine.model import MaskRefineNetwork
 
     dataset = get_trainval(config.dataset_path)
 
@@ -92,17 +94,17 @@ elif cmd == COMMANDS['train']:
                                verbose=config.debugging, gpu=config.optical_flow_device)
 
     with tf.device(config.model_device):
-        mr_subnet = MaskRefineSubnet(pwc_net)
+        mr_subnet = MaskRefineNetwork(pwc_net)
 
         if config.mask_refine_path is not None:
             mr_subnet.load_weights(config.mask_refine_path)
 
     print('Starting MaskRefine training...')
 
-    mr_subnet.train(train_gen, val_gen, epochs=config.epochs_per_run, steps_per_epoch=config.steps_per_epoch)
+    mr_subnet.train(train_gen, val_gen, config=config)
 elif cmd == COMMANDS['sizes']:
     from opt_flow.opt_flow import TensorFlowPWCNet
-    from mask_refine.model import MaskRefineSubnet
+    from mask_refine.model import MaskRefineNetwork
     import numpy as np
     
     def run_size_test(name, inputs, predictor):
@@ -116,7 +118,7 @@ elif cmd == COMMANDS['sizes']:
 
     with tf.device(config.model_device):
         pwc_net = TensorFlowPWCNet(dataset.size, model_pathname=config.optical_flow_path, verbose=config.debugging)
-        mr_subnet = MaskRefineSubnet(pwc_net)
+        mr_subnet = MaskRefineNetwork(pwc_net)
         
         run_size_test('MaskRefineSubnet', np.empty((1, 480, 854, 6)), mr_subnet.predict)
         run_size_test('PWCNet', np.empty((480, 854, 6)), pwc_net.infer_from_image_stack)

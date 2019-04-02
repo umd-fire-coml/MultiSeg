@@ -13,8 +13,9 @@ import tensorflow.keras.backend as K
 from typing import Union, Iterable
 
 from opt_flow.opt_flow import OpticalFlowNetwork
+from mask_refine.config import Configuration
 
-__all__ = ['MaskRefineSubnet']
+__all__ = ['MaskRefineNetwork']
 
 
 # functional layers
@@ -124,7 +125,7 @@ def pad64(tensor, image_dims=(1, 2)):
     # pads images with zeros to the next largest multiple of 64 (center fix)
     h_, w_ = math.ceil(tensor.shape[image_dims[0]] / 64) * 64, math.ceil(tensor.shape[image_dims[1]] / 64) * 64
     h_pad, w_pad = h_ - tensor.shape[image_dims[0]], w_ - tensor.shape[image_dims[1]]
-    # TODO output tuple is not dependent on image_dims --> this code is FRAGILE
+    # FIXME output tuple is not dependent on image_dims --> this code is FRAGILE
     return np.pad(tensor, ((0, 0),
                            (math.floor(h_pad / 2), math.ceil(h_pad / 2)),
                            (math.floor(w_pad / 2), math.ceil(w_pad / 2)),
@@ -143,7 +144,7 @@ def compute_mask_binary_cross_entropy_loss(y_true, y_pred):
 
 
 # TODO check tensor data types (and ranges)
-class MaskRefineSubnet:
+class MaskRefineNetwork:
     """
     Model for just the U-Net architecture within the Mask Refine Module. (Namely,
     this subnet does not handle running the optical flow network.)
@@ -229,16 +230,14 @@ class MaskRefineSubnet:
         if weights_path:
             self._model.load_weights(weights_path)
 
-    def train(self, train_generator, val_generator, epochs=30, steps_per_epoch=500, val_steps_per_epoch=100):
+    def train(self, train_generator, val_generator, config: Configuration):
         """
         Trains the U-Net using inputs and ground truth from the given generators.
         
         Args:
             train_generator: generate training inputs
             val_generator: generate input pairs for validation
-            epochs: number of epochs to train
-            steps_per_epoch: number of image pairs + masks per epoch for training
-            val_steps_per_epoch: number of image pairs + mask per epoch for validation
+            config: configuration settings for training
 
         Returns: Keras history object
         
@@ -251,6 +250,7 @@ class MaskRefineSubnet:
 
         # define a wrapper generator that applies optical flow to some of the
         # inputs and creates a new input stack and ground truth
+        # OPT can this be optimized off the generator?
         def with_optical_flow(gen):
             while True:
                 prev_img, curr_img, mask_tensor, gt_tensor = next(gen)
@@ -284,7 +284,7 @@ class MaskRefineSubnet:
                 write_graph=True,
                 write_images=False
             ),
-            ReduceLROnPlateau(patience=5),
+            ReduceLROnPlateau(patience=2),
             ModelCheckpoint(
                 checkpoint_file,
                 verbose=0,
@@ -296,9 +296,9 @@ class MaskRefineSubnet:
         history = self._model.fit_generator(
             with_optical_flow(train_generator),
             validation_data=with_optical_flow(val_generator),
-            steps_per_epoch=steps_per_epoch,
-            validation_steps=val_steps_per_epoch,
-            epochs=epochs,
+            steps_per_epoch=config.steps_per_epoch,
+            validation_steps=config.val_steps_per_epoch,
+            epochs=config.epochs,
             callbacks=callbacks
         )
 

@@ -1,4 +1,0 @@
-numpy
-pytest
-tensorflow>=1.6
-pillow

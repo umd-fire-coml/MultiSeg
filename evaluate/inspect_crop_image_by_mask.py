@@ -15,7 +15,7 @@ print('Logs and Model Directory: {}'.format(LOGS_DIR))
 
 from samples.balloon import balloon
 config = balloon.BalloonConfig()
-BALLOON_DIR = os.path.join(ROOT_DIR, "dataset\\balloon")
+BALLOON_DIR = os.path.join(ROOT_DIR, "dataset/balloon")
 
 # Load dataset
 # Get the dataset from the releases page
@@ -33,7 +33,7 @@ for i, info in enumerate(dataset.class_info):
     print("{:3}. {:50}".format(i, info['name']))
 
 # Import Mask RCNN
-from mrcnn import utils
+from image_seg import utils
 
 # Load and display random samples
 image_ids = np.random.choice(dataset.image_ids, 4)

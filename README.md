@@ -1,23 +1,26 @@
 ## Work in Progress, Not Production Ready
 
-# Multiple Video Instance Object Segmentation and Tracking
+Multiple Video Instance Object Segmentation and Tracking
+========================================================
 
-## Overview
+Overview
+--------
 The goal of this model is to segment multiple object instances from both video
 and still images and track (identify) objects over consecutive frames. There are
 3 major modules:
 * Image Segmentation Module
-  * Mask R-CNN
+  * Mask R-CNN [image_seg]
 * [Mask Refine Module](mask_refine/README.md)
-  * PWC-Net
-  * U-Net
+  * PWC-Net [opt_flow]
+  * U-Net [mask_refine]
 * Identification Module
-  * Triplet Network
-  * FAISS Database
+  * Triplet Network [instance_id]
+  * FAISS Database [instance_id]
 
-![MultiSeg Network Diagram](MultiSegModel.png)
+![MultiSeg Network Diagram](assets/MultiSegModelFlow.png)
 
-## Instructions for Use
+Instructions for Use
+--------------------
 This project was developed on Python 3.6, Tensorflow 1.11, Keras 2.1, and Numpy 
 1.13. To ensure full compatibility, use these versions (but it may work with
 other versions).
@@ -108,13 +111,15 @@ Dataset: DAVIS 2017
 #### Instance Identification
 See separate repository (linked under the instance_id directory). In the future, when this module is more mature, it will be integrated into the current repository.
 
-## Future Work
+Future Work
+-----------
 * integrate ImageSeg and MaskRefine
 * develop triplet network in keras
 * refine MaskRefine using new loss function
 * integrate all 3 modules
 * evaluation & metrics
 
-## Samples
-![Coarse Mask Refine Module Outputs](mask_refine/example.png)
+Samples
+-------
+![Coarse Mask Refine Module Outputs](assets/MaskRefineCoarseTrainedExample.png)
 Coarse Mask Refine Inputs and Outputs

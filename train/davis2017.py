@@ -9,7 +9,7 @@ from random import shuffle
 import skimage
 from warnings import warn
 
-from image_seg import utils
+from train import datautils
 
 
 __all__ = ['Davis2017Dataset',
@@ -25,7 +25,7 @@ _selection_param_desc = "which objects to retrieve (either 'images', 'labels', o
                          "'videos')"
 
 
-class Davis2017Dataset(utils.Dataset):
+class Davis2017Dataset(datautils.Dataset):
     """
     Class for representing a dataset of images from the DAVIS 2017 Dataset.
 
@@ -47,7 +47,7 @@ class Davis2017Dataset(utils.Dataset):
      * paired_generator - generates image pairs (with masks) for a Keras model
      * sequential_generator - generates single images in sequence
     """
-    
+
     name = 'DAVIS2017'
     size = (480, 854)
 
@@ -220,6 +220,9 @@ class Davis2017Dataset(utils.Dataset):
         mask, ids = self.load_mask(image_id)
 
         return mask.astype(np.float32), ids
+
+    def image_reference(self, image_id):
+        return 'https://davischallenge.org/davis2017/code.html'
 
     def __str__(self):
         try:

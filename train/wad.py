@@ -14,8 +14,10 @@ import pickle
 import re
 import skimage.io
 
-from image_seg import config, utils
 from os.path import join, isfile, exists
+
+from image_seg import config, utils
+from train import datautils
 
 __all__ = ['WadConfig', 'WadDataset', 'class_names', 'classes_to_index', 'index_to_classes', 'index_to_class_names']
 
@@ -84,7 +86,7 @@ class WadConfig(config.Config):
 
 # TODO cleanup
 
-class WadDataset(utils.Dataset):
+class WadDataset(datautils.Dataset):
     name = 'WAD'
 
     image_height = 2710

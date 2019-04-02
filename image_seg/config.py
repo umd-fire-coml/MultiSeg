@@ -7,15 +7,12 @@ Licensed under the MIT License (see LICENSE for details)
 Written by Waleed Abdulla
 """
 
-import math
+from abc import ABC
 import numpy as np
 
 
-# Base Configuration Class
-# Don't use this class directly. Instead, sub-class it and override
-# the configurations you need to change.
-
-class Config(object):
+# Abstract Base Configuration Class
+class Config(ABC):
     """Base configuration class. For custom configurations, create a
     sub-class that inherits from this one and override properties
     that need to be changed.
@@ -35,7 +32,7 @@ class Config(object):
     IMAGES_PER_GPU = 2
 
     # Number of training steps per epoch
-    # This doesn't need to match the size of the training set. Tensorboard
+    # This doesn't need to match the size of the training set. TensorBoard
     # updates are saved at the end of each epoch, so setting this to a
     # smaller number means getting more frequent TensorBoard updates.
     # Validation stats are also calculated at each epoch end and they
@@ -61,7 +58,7 @@ class Config(object):
     COMPUTE_BACKBONE_SHAPE = None
 
     # The strides of each layer of the FPN Pyramid. These values
-    # are based on a Resnet101 backbone.
+    # are based on a ResNet-101 backbone.
     BACKBONE_STRIDES = [4, 8, 16, 32, 64]
 
     # Size of the fully-connected layers in the classification graph
@@ -86,13 +83,13 @@ class Config(object):
     RPN_ANCHOR_STRIDE = 1
 
     # Non-max suppression threshold to filter RPN proposals.
-    # You can increase this during training to generate more propsals.
+    # You can increase this during training to generate more proposals.
     RPN_NMS_THRESHOLD = 0.7
 
     # How many anchors per image to use for RPN training
     RPN_TRAIN_ANCHORS_PER_IMAGE = 256
 
-    # ROIs kept after non-maximum supression (training and inference)
+    # ROIs kept after non-maximum suppression (training and inference)
     POST_NMS_ROIS_TRAINING = 2000
     POST_NMS_ROIS_INFERENCE = 1000
 
@@ -127,7 +124,7 @@ class Config(object):
     # Minimum scaling ratio. Checked after MIN_IMAGE_DIM and can force further
     # up scaling. For example, if set to 2 then images are scaled up to double
     # the width and height, or more, even if MIN_IMAGE_DIM doesn't require it.
-    # Howver, in 'square' mode, it can be overruled by IMAGE_MAX_DIM.
+    # However, in 'square' mode, it can be overruled by IMAGE_MAX_DIM.
     IMAGE_MIN_SCALE = 0
 
     # Image mean (RGB)
@@ -170,7 +167,7 @@ class Config(object):
 
     # Learning rate and momentum
     # The Mask RCNN paper uses lr=0.02, but on TensorFlow it causes
-    # weights to explode. Likely due to differences in optimzer
+    # weights to explode. Likely due to differences in optimizer
     # implementation.
     LEARNING_RATE = 0.001
     LEARNING_MOMENTUM = 0.9

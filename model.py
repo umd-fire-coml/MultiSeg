@@ -31,7 +31,7 @@ class MultiSeg(object):
         if self.mode == 'inference':
             self.optical_flow = of.TensorFlowPWCNet(image_size)
             self.image_seg = imgseg.MaskRCNN(mode=self.mode, config=mrcnn_config, model_dir=log_dir)
-            self.mask_refine = mr.MaskRefineSubnet(self.optical_flow)
+            self.mask_refine = mr.MaskRefineNetwork(self.optical_flow)
             
         if self.mode == 'training':
             prev_image = kl.Input((None, None, 3), )
